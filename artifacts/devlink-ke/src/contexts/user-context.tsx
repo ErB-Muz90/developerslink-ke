@@ -7,6 +7,7 @@ export interface ActiveUser {
   displayName: string;
   avatarUrl?: string | null;
   level: string;
+  emailVerified: boolean;
 }
 
 interface UserContextValue {

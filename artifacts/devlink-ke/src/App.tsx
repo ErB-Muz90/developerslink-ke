@@ -14,7 +14,9 @@ import NewProfile from "@/pages/new-profile";
 import CreateRoom from "@/pages/create-room";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import VerifyEmail from "@/pages/verify-email";
 import { UserProvider } from "@/contexts/user-context";
+import { useOfflineQueueSync } from "@/hooks/use-offline-queue";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,8 +40,23 @@ function Router() {
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function AppInner() {
+  useOfflineQueueSync();
+  return (
+    <TooltipProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <Layout>
+          <Router />
+        </Layout>
+      </WouterRouter>
+      <Toaster />
+    </TooltipProvider>
   );
 }
 
@@ -47,14 +64,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <UserProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Layout>
-              <Router />
-            </Layout>
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
+        <AppInner />
       </UserProvider>
     </QueryClientProvider>
   );

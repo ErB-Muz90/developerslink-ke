@@ -1,0 +1,9 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Maskable icon has full bleed background (safe zone is center 80%) -->
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <!-- DL text -->
+  <text x="40" y="290" font-family="monospace,Courier New" font-size="130" font-weight="900" letter-spacing="-6" fill="#ffffff">DL</text>
+  <!-- _KE text in green -->
+  <text x="40" y="400" font-family="monospace,Courier New" font-size="130" font-weight="900" letter-spacing="-6" fill="#22c55e">_KE</text>
+  <rect x="40" y="415" width="180" height="4" rx="2" fill="#22c55e" opacity="0.6"/>
+</svg>

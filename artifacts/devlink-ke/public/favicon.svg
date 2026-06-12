@@ -1,3 +1,5 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="32" fill="#0a0a0a"/>
+  <text x="8" y="110" font-family="monospace,Courier New" font-size="62" font-weight="900" letter-spacing="-3" fill="#ffffff">DL</text>
+  <text x="8" y="168" font-family="monospace,Courier New" font-size="62" font-weight="900" letter-spacing="-3" fill="#22c55e">_KE</text>
 </svg>

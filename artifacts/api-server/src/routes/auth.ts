@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { createAndSendVerification } from "./email-verification";
 
 declare module "express-session" {
   interface SessionData {
@@ -69,6 +70,11 @@ router.post("/auth/register", async (req, res) => {
     .returning();
 
   req.session.userId = user.id;
+
+  if (user.email) {
+    createAndSendVerification(user.id, user.email).catch(() => {});
+  }
+
   res.status(201).json(safeUser(user));
 });
 

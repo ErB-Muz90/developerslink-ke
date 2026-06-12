@@ -7,13 +7,25 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
-import { UserPlus, Code2, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { queueRegistration } from "@/lib/offline-queue";
+import { UserPlus, Code2, Trash2, Eye, EyeOff, Loader2, WifiOff, CheckCircle } from "lucide-react";
 
 const skillCategoryEnum = z.enum(["backend", "frontend", "mobile", "ai", "networking", "design", "devops", "other"]);
 const skillProficiencyEnum = z.enum(["beginner", "intermediate", "pro"]);
+
+const KENYA_COUNTIES: Record<string, string[]> = {
+  "Nairobi": ["Nairobi"],
+  "Central": ["Kiambu", "Kirinyaga", "Murang'a", "Nyandarua", "Nyeri"],
+  "Coast": ["Kilifi", "Kwale", "Lamu", "Mombasa", "Taita-Taveta", "Tana River"],
+  "Eastern": ["Embu", "Isiolo", "Kitui", "Machakos", "Makueni", "Marsabit", "Meru", "Tharaka-Nithi"],
+  "North Eastern": ["Garissa", "Mandera", "Wajir"],
+  "Nyanza": ["Homa Bay", "Kisii", "Kisumu", "Migori", "Nyamira", "Siaya"],
+  "Rift Valley": ["Baringo", "Bomet", "Elgeyo-Marakwet", "Kajiado", "Kericho", "Laikipia", "Nakuru", "Nandi", "Narok", "Samburu", "Trans Nzoia", "Turkana", "Uasin Gishu", "West Pokot"],
+  "Western": ["Bungoma", "Busia", "Kakamega", "Vihiga"],
+};
 
 const profileSchema = z.object({
   username: z
@@ -52,6 +64,7 @@ export default function NewProfile() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [queuedOffline, setQueuedOffline] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(profileSchema),
@@ -78,25 +91,41 @@ export default function NewProfile() {
 
   const removeSkill = (i: number) => setSkills(skills.filter((_, idx) => idx !== i));
 
+  const buildPayload = (data: FormValues) => {
+    const { confirmPassword: _, ...rest } = data;
+    return {
+      ...rest,
+      githubUrl: rest.githubUrl || undefined,
+      twitterUrl: rest.twitterUrl || undefined,
+      skills,
+    };
+  };
+
   const onSubmit = async (data: FormValues) => {
     if (skills.length === 0) {
       toast({ title: "Skills required", description: "Add at least one skill", variant: "destructive" });
       return;
     }
 
+    const payload = buildPayload(data);
+
+    if (!navigator.onLine) {
+      try {
+        await queueRegistration(payload);
+        setQueuedOffline(true);
+      } catch {
+        toast({ title: "Error", description: "Failed to save offline. Try again.", variant: "destructive" });
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const { confirmPassword: _, ...payload } = data;
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          ...payload,
-          githubUrl: payload.githubUrl || undefined,
-          twitterUrl: payload.twitterUrl || undefined,
-          skills,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -113,7 +142,7 @@ export default function NewProfile() {
 
       const user = await res.json();
       await refetchMe();
-      toast({ title: "Welcome to DevLink KE!", description: "Your profile is live." });
+      toast({ title: "Welcome to DevLink KE!", description: "Your profile is live. Check your email to verify your address." });
       setLocation(`/profile/${user.id}`);
     } catch {
       toast({ title: "Error", description: "Something went wrong. Try again.", variant: "destructive" });
@@ -121,6 +150,34 @@ export default function NewProfile() {
       setIsSubmitting(false);
     }
   };
+
+  if (queuedOffline) {
+    return (
+      <div className="container mx-auto px-4 py-16 max-w-md flex flex-col items-center text-center gap-6">
+        <div className="w-20 h-20 border border-primary/30 bg-primary/5 flex items-center justify-center">
+          <CheckCircle className="h-10 w-10 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-mono font-bold text-xl text-foreground">PROFILE_QUEUED</h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            You're offline right now. Your profile data has been saved to your device.
+            As soon as you reconnect, it will be automatically submitted and your account created.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground border border-border/40 px-4 py-2">
+          <WifiOff className="h-3.5 w-3.5" />
+          <span>Will sync when back online</span>
+        </div>
+        <Button
+          variant="outline"
+          className="rounded-none font-mono text-xs border-border/60"
+          onClick={() => setQueuedOffline(false)}
+        >
+          Edit Profile
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -132,6 +189,12 @@ export default function NewProfile() {
         <p className="text-muted-foreground">
           Create your builder profile to connect with the network. Your credentials are private — only public profile info is visible.
         </p>
+        {!navigator.onLine && (
+          <div className="mt-3 flex items-center gap-2 text-xs font-mono text-amber-400 border border-amber-400/20 bg-amber-400/5 px-3 py-2">
+            <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>You're offline — your profile will be saved and submitted automatically when you reconnect.</span>
+          </div>
+        )}
       </div>
 
       <Form {...form}>
@@ -246,10 +309,28 @@ export default function NewProfile() {
 
               <FormField control={form.control} name="location" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">City / Hub</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nairobi" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
-                  </FormControl>
+                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">County / Hub</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger className="rounded-none font-mono focus-visible:ring-primary">
+                        <SelectValue placeholder="Select county…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-72">
+                      {Object.entries(KENYA_COUNTIES).map(([region, counties]) => (
+                        <SelectGroup key={region}>
+                          <SelectLabel className="font-mono text-[10px] uppercase text-muted-foreground px-2 py-1.5 tracking-widest">
+                            {region}
+                          </SelectLabel>
+                          {counties.map((county) => (
+                            <SelectItem key={county} value={county} className="font-mono text-sm">
+                              {county}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -378,6 +459,8 @@ export default function NewProfile() {
           >
             {isSubmitting ? (
               <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> INITIALIZING...</>
+            ) : !navigator.onLine ? (
+              <><WifiOff className="h-5 w-5 mr-2" /> SAVE_OFFLINE</>
             ) : (
               "INITIALIZE_PROFILE"
             )}

@@ -8,11 +8,13 @@ import aiRouter from "./ai";
 import notificationsRouter from "./notifications";
 import authRouter from "./auth";
 import passwordResetRouter from "./password-reset";
+import emailVerificationRouter from "./email-verification";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
 router.use(passwordResetRouter);
+router.use(emailVerificationRouter);
 router.use(healthRouter);
 router.use(usersRouter);
 router.use(roomsRouter);

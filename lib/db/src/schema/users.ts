@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -26,6 +26,7 @@ export const usersTable = pgTable("users", {
   lookingFor: text("looking_for"),
   roomsJoined: integer("rooms_joined").notNull().default(0),
   postsCount: integer("posts_count").notNull().default(0),
+  emailVerified: boolean("email_verified").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

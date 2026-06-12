@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="80" fill="#0a0a0a"/>
+  <rect x="1" y="1" width="510" height="510" rx="79" stroke="#22c55e" stroke-width="2" stroke-opacity="0.3"/>
+  <!-- Grid dots -->
+  <circle cx="80" cy="80" r="3" fill="#22c55e" opacity="0.25"/>
+  <circle cx="160" cy="80" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="80" cy="160" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="432" cy="80" r="3" fill="#22c55e" opacity="0.25"/>
+  <circle cx="352" cy="80" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="432" cy="160" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="80" cy="432" r="3" fill="#22c55e" opacity="0.25"/>
+  <circle cx="160" cy="432" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="80" cy="352" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="432" cy="432" r="3" fill="#22c55e" opacity="0.25"/>
+  <circle cx="352" cy="432" r="3" fill="#22c55e" opacity="0.15"/>
+  <circle cx="432" cy="352" r="3" fill="#22c55e" opacity="0.15"/>
+  <!-- Code bracket left: </> -->
+  <text x="52" y="198" font-family="monospace" font-size="52" font-weight="700" fill="#22c55e" opacity="0.6">&lt;/&gt;</text>
+  <!-- DL text -->
+  <text x="56" y="310" font-family="monospace,Courier New" font-size="148" font-weight="900" letter-spacing="-6" fill="#ffffff">DL</text>
+  <!-- _KE text in green -->
+  <text x="56" y="430" font-family="monospace,Courier New" font-size="148" font-weight="900" letter-spacing="-6" fill="#22c55e">_KE</text>
+  <!-- Accent line -->
+  <rect x="56" y="448" width="200" height="4" rx="2" fill="#22c55e" opacity="0.5"/>
+</svg>
