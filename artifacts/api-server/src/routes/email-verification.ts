@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { usersTable, emailVerificationTokensTable } from "@workspace/db";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { resendVerificationLimiter } from "../lib/rate-limit";
 
 const router = Router();
 
@@ -85,7 +86,7 @@ router.post("/auth/verify-email", async (req, res) => {
   }
 });
 
-router.post("/auth/resend-verification", async (req, res) => {
+router.post("/auth/resend-verification", resendVerificationLimiter, async (req, res) => {
   const userId = req.session.userId;
   if (!userId) return res.status(401).json({ error: "Not authenticated" });
 

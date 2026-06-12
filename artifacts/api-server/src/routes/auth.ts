@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createAndSendVerification } from "./email-verification";
 import { isDisposableEmail } from "../lib/email-validator";
+import { loginLimiter, registerLimiter } from "../lib/rate-limit";
 
 declare module "express-session" {
   interface SessionData {
@@ -43,7 +44,7 @@ function safeUser(user: typeof usersTable.$inferSelect) {
   return safe;
 }
 
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", registerLimiter, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
@@ -83,7 +84,7 @@ router.post("/auth/register", async (req, res) => {
   res.status(201).json(safeUser(user));
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", loginLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
 
