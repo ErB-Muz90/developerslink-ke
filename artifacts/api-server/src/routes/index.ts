@@ -5,6 +5,7 @@ import roomsRouter from "./rooms";
 import postsRouter from "./posts";
 import matchingRouter from "./matching";
 import aiRouter from "./ai";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(roomsRouter);
 router.use(postsRouter);
 router.use(matchingRouter);
 router.use(aiRouter);
+router.use(notificationsRouter);
 
 export default router;

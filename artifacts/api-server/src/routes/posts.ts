@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { postsTable, usersTable, roomsTable } from "@workspace/db";
-import { eq, sql, desc } from "drizzle-orm";
+import { postsTable, usersTable, roomsTable, notificationsTable } from "@workspace/db";
+import { eq, sql, desc, ne, and } from "drizzle-orm";
 import {
   GetRoomPostsQueryParams,
   CreatePostParams,
@@ -11,7 +11,7 @@ import {
   DeletePostParams,
   UpvotePostParams,
 } from "@workspace/api-zod";
-import { broadcastToRoom } from "../lib/websocket";
+import { broadcastToRoom, broadcastToUser } from "../lib/websocket";
 
 const router = Router();
 
@@ -56,10 +56,7 @@ router.post("/rooms/:id/posts", async (req, res) => {
 
   await db
     .update(roomsTable)
-    .set({
-      postCount: sql`${roomsTable.postCount} + 1`,
-      lastActiveAt: new Date(),
-    })
+    .set({ postCount: sql`${roomsTable.postCount} + 1`, lastActiveAt: new Date() })
     .where(eq(roomsTable.id, params.data.id));
 
   if (body.data.authorId) {
@@ -70,8 +67,70 @@ router.post("/rooms/:id/posts", async (req, res) => {
   }
 
   const enriched = await enrichPost(post);
-
   broadcastToRoom(params.data.id, { type: "new_post", post: enriched });
+
+  // Create notifications
+  const fromUser = enriched.author;
+  const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
+
+  if (fromUser && room) {
+    // If it's a reply, notify the parent post author specifically
+    if (body.data.parentPostId) {
+      const [parentPost] = await db
+        .select()
+        .from(postsTable)
+        .where(eq(postsTable.id, body.data.parentPostId));
+
+      if (parentPost?.authorId && parentPost.authorId !== body.data.authorId) {
+        const [notif] = await db
+          .insert(notificationsTable)
+          .values({
+            userId: parentPost.authorId,
+            fromUserId: body.data.authorId ?? null,
+            postId: post.id,
+            roomId: params.data.id,
+            message: `${fromUser.displayName} replied to your post in #${room.name}`,
+          })
+          .returning();
+
+        const enrichedNotif = { ...notif, fromUser, room };
+        broadcastToUser(parentPost.authorId, { type: "new_notification", notification: enrichedNotif });
+      }
+    } else {
+      // Notify recent room participants (last 10 unique posters, excluding the current author)
+      const recentPosts = await db
+        .select({ authorId: postsTable.authorId })
+        .from(postsTable)
+        .where(
+          and(
+            eq(postsTable.roomId, params.data.id),
+            body.data.authorId ? ne(postsTable.authorId, body.data.authorId) : undefined
+          )
+        )
+        .orderBy(desc(postsTable.createdAt))
+        .limit(50);
+
+      const notifiedUserIds = new Set<number>();
+      for (const p of recentPosts) {
+        if (!p.authorId || notifiedUserIds.has(p.authorId) || notifiedUserIds.size >= 5) continue;
+        notifiedUserIds.add(p.authorId);
+
+        const [notif] = await db
+          .insert(notificationsTable)
+          .values({
+            userId: p.authorId,
+            fromUserId: body.data.authorId ?? null,
+            postId: post.id,
+            roomId: params.data.id,
+            message: `${fromUser.displayName} posted in #${room.name}`,
+          })
+          .returning();
+
+        const enrichedNotif = { ...notif, fromUser, room };
+        broadcastToUser(p.authorId, { type: "new_notification", notification: enrichedNotif });
+      }
+    }
+  }
 
   res.status(201).json(enriched);
 });

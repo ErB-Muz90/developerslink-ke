@@ -490,6 +490,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiSummary"
 
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationList"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read for a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadAllNotificationsInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadAllNotificationsResult"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationItem"
+
   /ai/suggest-solution:
     post:
       operationId: suggestSolution
@@ -854,3 +916,54 @@ components:
           items:
             type: string
       required: [solution, steps, resources]
+
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        fromUserId:
+          type: ["integer", "null"]
+        fromUser:
+          $ref: "#/components/schemas/User"
+        postId:
+          type: ["integer", "null"]
+        roomId:
+          type: integer
+        room:
+          $ref: "#/components/schemas/Room"
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, roomId, message, isRead, createdAt]
+
+    ReadAllNotificationsInput:
+      type: object
+      properties:
+        userId:
+          type: integer
+      required: [userId]
+
+    ReadAllNotificationsResult:
+      type: object
+      properties:
+        updated:
+          type: integer
+      required: [updated]
+
+    NotificationList:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationItem"
+        unreadCount:
+          type: integer
+      required: [notifications, unreadCount]

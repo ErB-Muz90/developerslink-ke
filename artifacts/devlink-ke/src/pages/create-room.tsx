@@ -47,7 +47,7 @@ export default function CreateRoom() {
     }
   });
 
-  const onSubmit = (data: z.output<typeof roomSchema>) => {
+  const onSubmit = (data: z.output<typeof roomSchema> | any) => {
     createRoom.mutate({
       data: {
         name: data.name,

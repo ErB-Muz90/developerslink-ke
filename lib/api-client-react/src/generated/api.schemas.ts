@@ -258,6 +258,34 @@ export interface AiSolution {
   resources: string[];
 }
 
+export interface NotificationItem {
+  id: number;
+  userId: number;
+  /** @nullable */
+  fromUserId?: number | null;
+  fromUser?: User;
+  /** @nullable */
+  postId?: number | null;
+  roomId: number;
+  room?: Room;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface ReadAllNotificationsInput {
+  userId: number;
+}
+
+export interface ReadAllNotificationsResult {
+  updated: number;
+}
+
+export interface NotificationList {
+  notifications: NotificationItem[];
+  unreadCount: number;
+}
+
 export type ListUsersParams = {
 skill?: string;
 level?: ListUsersLevel;
@@ -303,5 +331,10 @@ export type GetRoomPostsParams = {
 roomId: number;
 limit?: number;
 offset?: number;
+};
+
+export type ListNotificationsParams = {
+userId: number;
+unreadOnly?: boolean;
 };
 

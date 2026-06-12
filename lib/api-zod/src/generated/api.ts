@@ -630,6 +630,130 @@ export const SummarizeRoomResponse = zod.object({
 
 
 /**
+ * @summary List notifications for a user
+ */
+export const listNotificationsQueryUnreadOnlyDefault = false;
+
+export const ListNotificationsQueryParams = zod.object({
+  "userId": zod.coerce.number(),
+  "unreadOnly": zod.coerce.boolean().default(listNotificationsQueryUnreadOnlyDefault)
+})
+
+export const ListNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fromUserId": zod.number().nullish(),
+  "fromUser": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "skills": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.enum(['backend', 'frontend', 'mobile', 'ai', 'networking', 'design', 'devops', 'other']),
+  "proficiency": zod.enum(['beginner', 'intermediate', 'pro'])
+})),
+  "level": zod.enum(['beginner', 'intermediate', 'pro']),
+  "githubUrl": zod.string().nullish(),
+  "twitterUrl": zod.string().nullish(),
+  "lookingFor": zod.string().nullish(),
+  "roomsJoined": zod.number(),
+  "postsCount": zod.number(),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "postId": zod.number().nullish(),
+  "roomId": zod.number(),
+  "room": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['discussion', 'project', 'learning']),
+  "skills": zod.array(zod.string()),
+  "memberCount": zod.number(),
+  "postCount": zod.number(),
+  "isPinned": zod.boolean(),
+  "isPrivate": zod.boolean(),
+  "createdByUserId": zod.number().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lastActiveAt": zod.coerce.date()
+}).optional(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})),
+  "unreadCount": zod.number()
+})
+
+
+/**
+ * @summary Mark all notifications as read for a user
+ */
+export const MarkAllNotificationsReadBody = zod.object({
+  "userId": zod.number()
+})
+
+export const MarkAllNotificationsReadResponse = zod.object({
+  "updated": zod.number()
+})
+
+
+/**
+ * @summary Mark a single notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const MarkNotificationReadResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fromUserId": zod.number().nullish(),
+  "fromUser": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "skills": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.enum(['backend', 'frontend', 'mobile', 'ai', 'networking', 'design', 'devops', 'other']),
+  "proficiency": zod.enum(['beginner', 'intermediate', 'pro'])
+})),
+  "level": zod.enum(['beginner', 'intermediate', 'pro']),
+  "githubUrl": zod.string().nullish(),
+  "twitterUrl": zod.string().nullish(),
+  "lookingFor": zod.string().nullish(),
+  "roomsJoined": zod.number(),
+  "postsCount": zod.number(),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "postId": zod.number().nullish(),
+  "roomId": zod.number(),
+  "room": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "type": zod.enum(['discussion', 'project', 'learning']),
+  "skills": zod.array(zod.string()),
+  "memberCount": zod.number(),
+  "postCount": zod.number(),
+  "isPinned": zod.boolean(),
+  "isPrivate": zod.boolean(),
+  "createdByUserId": zod.number().nullish(),
+  "createdAt": zod.coerce.date(),
+  "lastActiveAt": zod.coerce.date()
+}).optional(),
+  "message": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary AI-powered solution suggestion for a problem
  */
 export const SuggestSolutionBody = zod.object({

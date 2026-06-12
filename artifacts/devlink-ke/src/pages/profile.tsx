@@ -9,7 +9,7 @@ import { format } from "date-fns";
 export default function Profile() {
   const params = useParams();
   const userId = parseInt(params.id || "0");
-  const { data: user, isLoading } = useGetUser(userId, { query: { enabled: !!userId } });
+  const { data: user, isLoading } = useGetUser(userId, { query: { enabled: !!userId, queryKey: ["/api/users", userId] } });
 
   if (isLoading) return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">

@@ -40,7 +40,7 @@ export default function Match() {
     }
   });
 
-  const onSubmit = (data: z.output<typeof matchSchema>) => {
+  const onSubmit = (data: z.output<typeof matchSchema> | any) => {
     matchDevelopers.mutate({ 
       data: {
         skills: data.skills,

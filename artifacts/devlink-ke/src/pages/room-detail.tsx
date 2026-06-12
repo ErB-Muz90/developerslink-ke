@@ -1,15 +1,35 @@
-import { useState, useEffect, useRef } from "react";
-import { useGetRoom, useGetRoomPosts, useCreatePost, useSummarizeRoom, useJoinRoom, useUpvotePost, getGetRoomPostsQueryKey } from "@workspace/api-client-react";
+import { useState, useRef, useCallback } from "react";
+import {
+  useGetRoom,
+  useGetRoomPosts,
+  useCreatePost,
+  useJoinRoom,
+  useUpvotePost,
+  getGetRoomPostsQueryKey,
+} from "@workspace/api-client-react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Users, Hash, Send, Sparkles, AlertCircle, MessageSquare, ChevronUp, Wifi, WifiOff, ArrowLeft } from "lucide-react";
+import {
+  Users,
+  Hash,
+  Send,
+  Sparkles,
+  AlertCircle,
+  MessageSquare,
+  ChevronUp,
+  Wifi,
+  WifiOff,
+  ArrowLeft,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoomSocket } from "@/hooks/use-room-socket";
+import { useCurrentUser } from "@/contexts/user-context";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const ROOM_TYPE_COLOR: Record<string, string> = {
   discussion: "text-primary border-primary/30 bg-primary/5",
@@ -23,13 +43,22 @@ export default function RoomDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useCurrentUser();
 
   const [content, setContent] = useState("");
   const [summary, setSummary] = useState<any>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
+  const [incomingNotification, setIncomingNotification] = useState<any>(null);
 
-  const { isConnected } = useRoomSocket(roomId);
+  const onNotification = useCallback((notif: any) => {
+    setIncomingNotification(notif);
+  }, []);
+
+  const { isConnected } = useRoomSocket(roomId, {
+    userId: currentUser?.id,
+    onNotification,
+  });
 
   const { data: room, isLoading: roomLoading } = useGetRoom(roomId, {
     query: { enabled: !!roomId, queryKey: ["/api/rooms", roomId] },
@@ -64,17 +93,12 @@ export default function RoomDetail() {
 
   const upvotePost = useUpvotePost();
 
-  const summarizeRoomFn = useSummarizeRoom(roomId, {
-    query: { enabled: false, queryKey: ["/api/ai/summarize", roomId] },
-  });
-
   const handleSummarize = async () => {
     setIsSummarizing(true);
     try {
       const data = await queryClient.fetchQuery({
         queryKey: ["/api/ai/summarize", roomId],
-        queryFn: () =>
-          fetch(`/api/ai/summarize/${roomId}`).then((r) => r.json()),
+        queryFn: () => fetch(`/api/ai/summarize/${roomId}`).then((r) => r.json()),
         staleTime: 60_000,
       });
       setSummary(data);
@@ -87,7 +111,10 @@ export default function RoomDetail() {
 
   const handlePost = () => {
     if (!content.trim() || createPost.isPending) return;
-    createPost.mutate({ id: roomId, data: { content } });
+    createPost.mutate({
+      id: roomId,
+      data: { content, authorId: currentUser?.id ?? undefined },
+    });
   };
 
   const handleUpvote = (postId: number) => {
@@ -122,7 +149,7 @@ export default function RoomDetail() {
       <div className="container mx-auto px-4 py-16 text-center">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
         <h1 className="text-2xl font-bold font-mono">ROOM_NOT_FOUND</h1>
-        <p className="text-muted-foreground mt-2 mb-6">The room you're looking for doesn't exist or was removed.</p>
+        <p className="text-muted-foreground mt-2 mb-6">The room you're looking for doesn't exist.</p>
         <Link href="/rooms">
           <Button className="rounded-none font-mono">BACK_TO_ROOMS</Button>
         </Link>
@@ -156,7 +183,6 @@ export default function RoomDetail() {
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">{room.description}</p>
               </div>
-              {/* Live indicator */}
               <div
                 className={`flex items-center gap-1.5 text-[10px] font-mono flex-shrink-0 px-2 py-1 border ${
                   isConnected
@@ -179,6 +205,26 @@ export default function RoomDetail() {
               </div>
             </div>
           </div>
+
+          {/* Posting as banner */}
+          {currentUser && (
+            <div className="mb-4 flex items-center gap-2 px-3 py-2 border border-primary/20 bg-primary/5 text-xs font-mono">
+              <div className="w-5 h-5 bg-muted flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px]">{currentUser.displayName.substring(0, 2).toUpperCase()}</span>
+              </div>
+              <span className="text-muted-foreground">Posting as</span>
+              <span className="text-primary font-semibold">{currentUser.displayName}</span>
+              <span className={`ml-auto text-[9px] px-1 py-0.5 border font-mono ${
+                currentUser.level === "pro"
+                  ? "text-primary border-primary/30 bg-primary/5"
+                  : currentUser.level === "intermediate"
+                  ? "text-secondary border-secondary/30"
+                  : "text-muted-foreground border-border"
+              }`}>
+                {currentUser.level.toUpperCase()}
+              </span>
+            </div>
+          )}
 
           {/* AI Summary */}
           <AnimatePresence>
@@ -217,9 +263,7 @@ export default function RoomDetail() {
           <div className="flex-1 space-y-3 mb-5">
             {postsLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
-                ))}
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
               </div>
             ) : !posts || posts.length === 0 ? (
               <div className="h-52 flex flex-col items-center justify-center border border-dashed border-border bg-muted/5">
@@ -231,6 +275,7 @@ export default function RoomDetail() {
               <AnimatePresence initial={false}>
                 {[...posts].reverse().map((post) => {
                   const isNew = newPostIds.has(post.id);
+                  const isOwn = currentUser && post.author?.id === currentUser.id;
                   return (
                     <motion.div
                       key={post.id}
@@ -238,7 +283,11 @@ export default function RoomDetail() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{ duration: 0.25 }}
                       data-testid={`post-card-${post.id}`}
-                      className="p-4 bg-card border border-border group hover:border-primary/30 transition-colors"
+                      className={`p-4 bg-card border transition-colors ${
+                        isOwn
+                          ? "border-primary/25 bg-primary/3"
+                          : "border-border hover:border-primary/20"
+                      }`}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
@@ -255,8 +304,9 @@ export default function RoomDetail() {
                           </Link>
                           <div>
                             <Link href={post.author?.id ? `/profile/${post.author.id}` : "#"}>
-                              <span className="font-bold text-sm text-foreground hover:text-primary cursor-pointer transition-colors">
+                              <span className={`font-bold text-sm hover:text-primary cursor-pointer transition-colors ${isOwn ? "text-primary" : "text-foreground"}`}>
                                 {post.author?.displayName ?? "Unknown User"}
+                                {isOwn && <span className="ml-1.5 text-[9px] font-mono opacity-60">YOU</span>}
                               </span>
                             </Link>
                             <span className="text-[10px] font-mono text-muted-foreground ml-2">
@@ -306,10 +356,21 @@ export default function RoomDetail() {
 
           {/* Composer */}
           <div className="mt-auto border border-border bg-card focus-within:border-primary/60 transition-colors">
+            {!currentUser && (
+              <div className="px-3 py-2 border-b border-border/30 bg-muted/20 flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Select a profile in the navbar to post with your identity
+                </span>
+              </div>
+            )}
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Share your thoughts, ask a question, or post a resource..."
+              placeholder={
+                currentUser
+                  ? `Share your thoughts as ${currentUser.displayName}...`
+                  : "Type your message here..."
+              }
               className="min-h-[80px] resize-none border-0 focus-visible:ring-0 bg-transparent text-foreground p-3 text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -330,13 +391,7 @@ export default function RoomDetail() {
                 className="rounded-none font-mono bg-primary text-primary-foreground hover:bg-primary/90 px-6 h-8 ml-auto"
                 data-testid="button-send-post"
               >
-                {createPost.isPending ? (
-                  "SENDING..."
-                ) : (
-                  <>
-                    <Send className="w-3 h-3 mr-2" /> SEND
-                  </>
-                )}
+                {createPost.isPending ? "SENDING..." : <><Send className="w-3 h-3 mr-2" /> SEND</>}
               </Button>
             </div>
           </div>
@@ -344,7 +399,6 @@ export default function RoomDetail() {
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
-          {/* Actions */}
           <div className="p-4 border border-border bg-card/50 space-y-2">
             <Button
               className="w-full rounded-none font-mono bg-foreground text-background hover:bg-foreground/90 text-xs"
@@ -370,7 +424,6 @@ export default function RoomDetail() {
             )}
           </div>
 
-          {/* Room Info */}
           <div className="p-4 border border-border bg-card">
             <h3 className="font-mono font-bold text-xs text-foreground mb-4 border-b border-border/50 pb-2 tracking-widest">
               ROOM_INFO
@@ -398,10 +451,7 @@ export default function RoomDetail() {
                 <div className="flex flex-wrap gap-1">
                   {room.skills.length > 0 ? (
                     room.skills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="text-[10px] px-1.5 py-0.5 bg-muted text-foreground border border-border font-mono"
-                      >
+                      <span key={skill} className="text-[10px] px-1.5 py-0.5 bg-muted text-foreground border border-border font-mono">
                         {skill}
                       </span>
                     ))
@@ -413,16 +463,17 @@ export default function RoomDetail() {
               <div>
                 <div className="text-[10px] font-mono text-muted-foreground mb-1 uppercase tracking-wider">Created</div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(room.createdAt).toLocaleDateString("en-KE", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {new Date(room.createdAt).toLocaleDateString("en-KE", { year: "numeric", month: "short", day: "numeric" })}
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Hidden NotificationBell to receive incoming WS notifications */}
+      <div className="hidden">
+        <NotificationBell incomingNotification={incomingNotification} />
       </div>
     </div>
   );

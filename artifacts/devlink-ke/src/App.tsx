@@ -12,6 +12,7 @@ import Match from "@/pages/match";
 import Profile from "@/pages/profile";
 import NewProfile from "@/pages/new-profile";
 import CreateRoom from "@/pages/create-room";
+import { UserProvider } from "@/contexts/user-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,14 +42,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Layout>
-            <Router />
-          </Layout>
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      <UserProvider>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Layout>
+              <Router />
+            </Layout>
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </UserProvider>
     </QueryClientProvider>
   );
 }

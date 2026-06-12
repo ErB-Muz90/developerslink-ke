@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, X, Code2, Cpu, Wifi, Users, Zap, Home, PlusSquare, UserPlus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { UserSelector } from "@/components/layout/UserSelector";
+import { useCurrentUser } from "@/contexts/user-context";
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
@@ -22,6 +25,7 @@ const SKILL_PILLS = ["Node.js", "Flutter", "AI/ML", "React", "DevOps", "Mikrotik
 export function Navbar() {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { currentUser } = useCurrentUser();
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -29,18 +33,15 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
-        {/* Logo */}
+        {/* Logo + Desktop nav */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-2 group" data-testid="link-home-logo">
-            <div className="flex items-center gap-1.5">
-              <Code2 className="h-4 w-4 text-primary group-hover:rotate-12 transition-transform duration-200" />
-              <span className="font-mono font-bold text-lg tracking-tighter text-foreground">
-                DL<span className="text-primary">_KE</span>
-              </span>
-            </div>
+            <Code2 className="h-4 w-4 text-primary group-hover:rotate-12 transition-transform duration-200" />
+            <span className="font-mono font-bold text-lg tracking-tighter text-foreground">
+              DL<span className="text-primary">_KE</span>
+            </span>
           </Link>
 
-          {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
@@ -66,13 +67,23 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Desktop actions */}
-        <div className="hidden md:flex items-center gap-3">
-          <Link href="/new-profile" data-testid="link-join-desktop">
-            <Button variant="outline" size="sm" className="font-mono text-xs rounded-none border-border/60 hover:border-primary/50">
-              <UserPlus className="h-3 w-3 mr-1.5" /> Join
-            </Button>
-          </Link>
+        {/* Desktop right side */}
+        <div className="hidden md:flex items-center gap-2">
+          {/* User selector */}
+          <UserSelector />
+
+          {/* Notification bell — only when signed in */}
+          <NotificationBell />
+
+          <div className="w-px h-5 bg-border/50 mx-1" />
+
+          {!currentUser && (
+            <Link href="/new-profile" data-testid="link-join-desktop">
+              <Button variant="outline" size="sm" className="font-mono text-xs rounded-none border-border/60 hover:border-primary/50">
+                <UserPlus className="h-3 w-3 mr-1.5" /> Join
+              </Button>
+            </Link>
+          )}
           <Link href="/create-room" data-testid="link-create-room-desktop">
             <Button size="sm" className="font-mono text-xs rounded-none bg-primary text-primary-foreground hover:bg-primary/90">
               <PlusSquare className="h-3 w-3 mr-1.5" /> Create Room
@@ -80,8 +91,9 @@ export function Navbar() {
           </Link>
         </div>
 
-        {/* Mobile hamburger */}
-        <div className="md:hidden">
+        {/* Mobile right side */}
+        <div className="md:hidden flex items-center gap-1">
+          <NotificationBell />
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button
@@ -129,7 +141,9 @@ export function Navbar() {
                     </span>
                   </Link>
                 </SheetTitle>
-                <p className="text-xs text-muted-foreground font-mono mt-1">Kenya's Tech Network</p>
+                <div className="mt-3">
+                  <UserSelector />
+                </div>
               </SheetHeader>
 
               <div className="flex-1 overflow-y-auto">
