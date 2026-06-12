@@ -138,9 +138,18 @@ export function AuthModal({ open, onOpenChange, defaultTab = "login" }: AuthModa
               </form>
             </Form>
 
-            <div className="mt-4 pt-4 border-t border-border/30 text-center">
+            <div className="mt-4 pt-4 border-t border-border/30 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  onOpenChange(false);
+                  setLocation("/forgot-password");
+                }}
+                className="text-xs text-muted-foreground hover:text-primary font-mono transition-colors"
+              >
+                Forgot password?
+              </button>
               <p className="text-xs text-muted-foreground">
-                No account yet?{" "}
+                No account?{" "}
                 <button
                   onClick={() => {
                     onOpenChange(false);

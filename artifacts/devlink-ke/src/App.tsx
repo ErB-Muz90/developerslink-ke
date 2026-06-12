@@ -12,6 +12,8 @@ import Match from "@/pages/match";
 import Profile from "@/pages/profile";
 import NewProfile from "@/pages/new-profile";
 import CreateRoom from "@/pages/create-room";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 import { UserProvider } from "@/contexts/user-context";
 
 const queryClient = new QueryClient({
@@ -34,6 +36,8 @@ function Router() {
       <Route path="/profile/:id" component={Profile} />
       <Route path="/new-profile" component={NewProfile} />
       <Route path="/create-room" component={CreateRoom} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route component={NotFound} />
     </Switch>
   );
