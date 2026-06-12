@@ -13,6 +13,11 @@ import {
 
 const router = Router();
 
+function safeUser(user: typeof usersTable.$inferSelect) {
+  const { passwordHash: _, ...safe } = user;
+  return safe;
+}
+
 router.get("/users", async (req, res) => {
   const query = ListUsersQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -20,7 +25,6 @@ router.get("/users", async (req, res) => {
   }
   const { skill, level, location, limit = 20, offset = 0 } = query.data;
 
-  let queryBuilder = db.select().from(usersTable);
   const conditions: ReturnType<typeof eq>[] = [];
 
   if (level) conditions.push(eq(usersTable.level, level));
@@ -39,7 +43,7 @@ router.get("/users", async (req, res) => {
     );
   }
 
-  res.json(users);
+  res.json(users.map(safeUser));
 });
 
 router.post("/users", async (req, res) => {
@@ -106,7 +110,7 @@ router.get("/users/:id", async (req, res) => {
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.id));
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json(user);
+  res.json(safeUser(user));
 });
 
 router.patch("/users/:id", async (req, res) => {

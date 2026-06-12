@@ -9,6 +9,7 @@ import notificationsRouter from "./notifications";
 import authRouter from "./auth";
 import passwordResetRouter from "./password-reset";
 import emailVerificationRouter from "./email-verification";
+import collabRequestsRouter from "./collab-requests";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(postsRouter);
 router.use(matchingRouter);
 router.use(aiRouter);
 router.use(notificationsRouter);
+router.use(collabRequestsRouter);
 
 export default router;
