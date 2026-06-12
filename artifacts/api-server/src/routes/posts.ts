@@ -11,6 +11,7 @@ import {
   DeletePostParams,
   UpvotePostParams,
 } from "@workspace/api-zod";
+import { broadcastToRoom } from "../lib/websocket";
 
 const router = Router();
 
@@ -69,6 +70,9 @@ router.post("/rooms/:id/posts", async (req, res) => {
   }
 
   const enriched = await enrichPost(post);
+
+  broadcastToRoom(params.data.id, { type: "new_post", post: enriched });
+
   res.status(201).json(enriched);
 });
 
@@ -87,6 +91,7 @@ router.patch("/posts/:id", async (req, res) => {
   if (!post) return res.status(404).json({ error: "Post not found" });
 
   const enriched = await enrichPost(post);
+  broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
   res.json(enriched);
 });
 
@@ -94,7 +99,8 @@ router.delete("/posts/:id", async (req, res) => {
   const params = DeletePostParams.safeParse(req.params);
   if (!params.success) return res.status(400).json({ error: "Invalid id" });
 
-  await db.delete(postsTable).where(eq(postsTable.id, params.data.id));
+  const [deleted] = await db.delete(postsTable).where(eq(postsTable.id, params.data.id)).returning();
+  if (deleted) broadcastToRoom(deleted.roomId, { type: "delete_post", postId: deleted.id });
   res.status(204).send();
 });
 
@@ -110,6 +116,7 @@ router.post("/posts/:id/upvote", async (req, res) => {
   if (!post) return res.status(404).json({ error: "Post not found" });
 
   const enriched = await enrichPost(post);
+  broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
   res.json(enriched);
 });
 

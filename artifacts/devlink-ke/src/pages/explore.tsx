@@ -9,12 +9,12 @@ import { Search } from "lucide-react";
 
 export default function Explore() {
   const [skill, setSkill] = useState("");
-  const [level, setLevel] = useState<string>("");
+  const [level, setLevel] = useState<string>("all");
   const [location, setLocationQuery] = useState("");
 
   const { data: users, isLoading } = useListUsers({ 
     skill: skill || undefined, 
-    level: level as any || undefined, 
+    level: (level && level !== "all") ? level as any : undefined, 
     location: location || undefined 
   });
 
@@ -50,7 +50,7 @@ export default function Explore() {
               <SelectValue placeholder="Any Level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Any Level</SelectItem>
+              <SelectItem value="all">Any Level</SelectItem>
               <SelectItem value="beginner">Beginner</SelectItem>
               <SelectItem value="intermediate">Intermediate</SelectItem>
               <SelectItem value="pro">Pro</SelectItem>
@@ -71,7 +71,7 @@ export default function Explore() {
         <div className="w-full md:w-auto">
           <Button 
             className="w-full rounded-none font-mono bg-primary hover:bg-primary/90 text-primary-foreground border border-primary px-8"
-            onClick={() => { setSkill(""); setLevel(""); setLocationQuery(""); }}
+            onClick={() => { setSkill(""); setLevel("all"); setLocationQuery(""); }}
             variant="outline"
           >
             CLEAR
