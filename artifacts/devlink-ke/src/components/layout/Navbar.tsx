@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, Code2, Cpu, Wifi, Users, Zap, Home, PlusSquare, UserPlus, LogIn, LogOut, User, ChevronDown } from "lucide-react";
+import { Menu, X, Cpu, Wifi, Users, Zap, Home, PlusSquare, UserPlus, LogIn, LogOut, User, ChevronDown } from "lucide-react";
+import { LogoMark } from "@/components/LogoMark";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useCurrentUser } from "@/contexts/user-context";
@@ -103,11 +104,8 @@ export function Navbar() {
         <div className="container mx-auto px-4 md:px-6 flex h-16 items-center justify-between">
           {/* Logo + Desktop nav */}
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 group" data-testid="link-home-logo">
-              <Code2 className="h-4 w-4 text-primary group-hover:rotate-12 transition-transform duration-200" />
-              <span className="font-mono font-bold text-lg tracking-tighter text-foreground">
-                DL<span className="text-primary">_KE</span>
-              </span>
+            <Link href="/" data-testid="link-home-logo">
+              <LogoMark size="md" />
             </Link>
 
             <div className="hidden md:flex items-center gap-1">
@@ -194,9 +192,8 @@ export function Navbar() {
               <SheetContent side="right" className="w-[280px] sm:w-[320px] bg-background border-l border-border/40 p-0 flex flex-col">
                 <SheetHeader className="p-6 pb-4 border-b border-border/30">
                   <SheetTitle className="text-left">
-                    <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2">
-                      <Code2 className="h-4 w-4 text-primary" />
-                      <span className="font-mono font-bold text-lg tracking-tighter">DL<span className="text-primary">_KE</span></span>
+                    <Link href="/" onClick={() => setMobileOpen(false)}>
+                      <LogoMark size="md" />
                     </Link>
                   </SheetTitle>
 
