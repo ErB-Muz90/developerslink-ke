@@ -1,22 +1,30 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DevLink KE API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User profile operations
+  - name: rooms
+    description: Room operations
+  - name: posts
+    description: Room post/thread operations
+  - name: matching
+    description: Smart developer matching
+  - name: ai
+    description: AI-powered features
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,483 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: skill
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [beginner, intermediate, pro]
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/stats/overview:
+    get:
+      operationId: getUserStats
+      tags: [users]
+      summary: Platform-wide user stats by skill category and level
+      responses:
+        "200":
+          description: User stats overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStats"
+
+  /users/top-builders:
+    get:
+      operationId: getTopBuilders
+      tags: [users]
+      summary: Top active builders on the platform
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Top builders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /rooms:
+    get:
+      operationId: listRooms
+      tags: [rooms]
+      summary: List all rooms
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [discussion, project, learning]
+        - name: skill
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomInput"
+      responses:
+        "201":
+          description: Created room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/{id}:
+    get:
+      operationId: getRoom
+      tags: [rooms]
+      summary: Get a room by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRoom
+      tags: [rooms]
+      summary: Update a room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoomUpdate"
+      responses:
+        "200":
+          description: Updated room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+    delete:
+      operationId: deleteRoom
+      tags: [rooms]
+      summary: Delete a room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /rooms/live-activity:
+    get:
+      operationId: getLiveRoomActivity
+      tags: [rooms]
+      summary: Rooms with most recent activity (for live preview)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 6
+      responses:
+        "200":
+          description: Active rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoomActivity"
+
+  /rooms/{id}/join:
+    post:
+      operationId: joinRoom
+      tags: [rooms]
+      summary: Join a room (increment member count)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /posts:
+    get:
+      operationId: getRoomPosts
+      tags: [posts]
+      summary: List posts in a room
+      parameters:
+        - name: roomId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+
+  /rooms/{id}/posts:
+    post:
+      operationId: createPost
+      tags: [posts]
+      summary: Create a post in a room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}:
+    patch:
+      operationId: updatePost
+      tags: [posts]
+      summary: Update a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdate"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+    delete:
+      operationId: deletePost
+      tags: [posts]
+      summary: Delete a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /posts/{id}/upvote:
+    post:
+      operationId: upvotePost
+      tags: [posts]
+      summary: Upvote a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Upvoted post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /match/developers:
+    post:
+      operationId: matchDevelopers
+      tags: [matching]
+      summary: Find developers matching a set of criteria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchCriteria"
+      responses:
+        "200":
+          description: Matched developers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchResult"
+
+  /match/suggestions/{userId}:
+    get:
+      operationId: getMatchSuggestions
+      tags: [matching]
+      summary: AI-powered match suggestions for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match suggestions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchResult"
+
+  /ai/summarize/{roomId}:
+    get:
+      operationId: summarizeRoom
+      tags: [ai]
+      summary: AI summary of recent room discussion
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: AI summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSummary"
+
+  /ai/suggest-solution:
+    post:
+      operationId: suggestSolution
+      tags: [ai]
+      summary: AI-powered solution suggestion for a problem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SolutionRequest"
+      responses:
+        "200":
+          description: AI solution suggestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSolution"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +516,341 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSkill"
+        level:
+          type: string
+          enum: [beginner, intermediate, pro]
+        githubUrl:
+          type: ["string", "null"]
+        twitterUrl:
+          type: ["string", "null"]
+        lookingFor:
+          type: ["string", "null"]
+        roomsJoined:
+          type: integer
+        postsCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, username, displayName, skills, level, roomsJoined, postsCount, createdAt]
+
+    UserSkill:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [backend, frontend, mobile, ai, networking, design, devops, other]
+        proficiency:
+          type: string
+          enum: [beginner, intermediate, pro]
+      required: [name, category, proficiency]
+
+    UserInput:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+        location:
+          type: string
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSkill"
+        level:
+          type: string
+          enum: [beginner, intermediate, pro]
+        githubUrl:
+          type: string
+        twitterUrl:
+          type: string
+        lookingFor:
+          type: string
+      required: [username, displayName, skills, level]
+
+    UserUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+        location:
+          type: string
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserSkill"
+        level:
+          type: string
+          enum: [beginner, intermediate, pro]
+        githubUrl:
+          type: string
+        twitterUrl:
+          type: string
+        lookingFor:
+          type: string
+
+    UserStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalRooms:
+          type: integer
+        totalPosts:
+          type: integer
+        byLevel:
+          type: object
+          properties:
+            beginner:
+              type: integer
+            intermediate:
+              type: integer
+            pro:
+              type: integer
+          required: [beginner, intermediate, pro]
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+            required: [category, count]
+      required: [totalUsers, totalRooms, totalPosts, byLevel, byCategory]
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [discussion, project, learning]
+        skills:
+          type: array
+          items:
+            type: string
+        memberCount:
+          type: integer
+        postCount:
+          type: integer
+        isPinned:
+          type: boolean
+        isPrivate:
+          type: boolean
+        createdByUserId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+      required: [id, name, type, skills, memberCount, postCount, isPinned, isPrivate, createdAt, lastActiveAt]
+
+    RoomInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [discussion, project, learning]
+        skills:
+          type: array
+          items:
+            type: string
+        isPrivate:
+          type: boolean
+        createdByUserId:
+          type: integer
+      required: [name, type, skills]
+
+    RoomUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        isPinned:
+          type: boolean
+        isPrivate:
+          type: boolean
+
+    RoomActivity:
+      type: object
+      properties:
+        room:
+          $ref: "#/components/schemas/Room"
+        recentPostCount:
+          type: integer
+        lastPost:
+          $ref: "#/components/schemas/Post"
+      required: [room, recentPostCount]
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+        roomId:
+          type: integer
+        authorId:
+          type: ["integer", "null"]
+        author:
+          $ref: "#/components/schemas/User"
+        content:
+          type: string
+        isPinned:
+          type: boolean
+        upvotes:
+          type: integer
+        parentPostId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, roomId, content, isPinned, upvotes, createdAt, updatedAt]
+
+    PostInput:
+      type: object
+      properties:
+        content:
+          type: string
+        authorId:
+          type: integer
+        parentPostId:
+          type: integer
+      required: [content]
+
+    PostUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+        isPinned:
+          type: boolean
+
+    MatchCriteria:
+      type: object
+      properties:
+        skills:
+          type: array
+          items:
+            type: string
+        level:
+          type: string
+          enum: [beginner, intermediate, pro]
+        location:
+          type: string
+        lookingFor:
+          type: string
+        limit:
+          type: integer
+          default: 10
+      required: [skills]
+
+    MatchResult:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        matchScore:
+          type: number
+        matchReasons:
+          type: array
+          items:
+            type: string
+      required: [user, matchScore, matchReasons]
+
+    AiSummary:
+      type: object
+      properties:
+        roomId:
+          type: integer
+        summary:
+          type: string
+        keyTopics:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required: [roomId, summary, keyTopics, generatedAt]
+
+    SolutionRequest:
+      type: object
+      properties:
+        problem:
+          type: string
+        context:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+      required: [problem]
+
+    AiSolution:
+      type: object
+      properties:
+        solution:
+          type: string
+        steps:
+          type: array
+          items:
+            type: string
+        resources:
+          type: array
+          items:
+            type: string
+      required: [solution, steps, resources]
