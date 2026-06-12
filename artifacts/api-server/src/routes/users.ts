@@ -117,6 +117,10 @@ router.patch("/users/:id", async (req, res) => {
   const params = UpdateUserParams.safeParse(req.params);
   if (!params.success) return res.status(400).json({ error: "Invalid id" });
 
+  if (req.session.userId !== params.data.id) {
+    return res.status(403).json({ error: "You can only update your own profile" });
+  }
+
   const body = UpdateUserBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Invalid request body" });
 
@@ -126,7 +130,7 @@ router.patch("/users/:id", async (req, res) => {
     .where(eq(usersTable.id, params.data.id))
     .returning();
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json(user);
+  res.json(safeUser(user));
 });
 
 export default router;

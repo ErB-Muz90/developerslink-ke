@@ -329,7 +329,7 @@ export default function Profile() {
             <div className="space-y-2">
               {isOwnProfile ? (
                 <>
-                  <Link href="/new-profile">
+                  <Link href="/edit-profile">
                     <Button className="w-full rounded-none font-mono text-xs border border-border/60 text-muted-foreground hover:text-foreground" variant="ghost">
                       <Edit className="h-3.5 w-3.5 mr-1.5" /> EDIT_PROFILE
                     </Button>

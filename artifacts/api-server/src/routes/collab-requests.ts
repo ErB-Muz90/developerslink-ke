@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { collabRequestsTable, usersTable, notificationsTable } from "@workspace/db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 
 const router = Router();
@@ -55,6 +55,67 @@ router.post("/collab-requests", async (req, res) => {
   }).catch(() => {});
 
   res.status(201).json(request);
+});
+
+router.get("/collab-requests/incoming", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const requests = await db.select({
+    id: collabRequestsTable.id,
+    fromUserId: collabRequestsTable.fromUserId,
+    message: collabRequestsTable.message,
+    status: collabRequestsTable.status,
+    createdAt: collabRequestsTable.createdAt,
+    displayName: usersTable.displayName,
+    username: usersTable.username,
+  })
+    .from(collabRequestsTable)
+    .leftJoin(usersTable, eq(collabRequestsTable.fromUserId, usersTable.id))
+    .where(eq(collabRequestsTable.toUserId, userId))
+    .orderBy(desc(collabRequestsTable.createdAt));
+
+  res.json(requests);
+});
+
+router.patch("/collab-requests/:id", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const id = parseInt(req.params["id"] ?? "0");
+  if (!id) return res.status(400).json({ error: "Invalid id" });
+
+  const { action } = req.body ?? {};
+  if (action !== "accept" && action !== "decline") {
+    return res.status(400).json({ error: "action must be 'accept' or 'decline'" });
+  }
+
+  const [request] = await db.select()
+    .from(collabRequestsTable)
+    .where(eq(collabRequestsTable.id, id));
+
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.toUserId !== userId) return res.status(403).json({ error: "Forbidden" });
+  if (request.status !== "pending") return res.status(400).json({ error: "Request already resolved" });
+
+  const status = action === "accept" ? "accepted" : "declined";
+  const [updated] = await db.update(collabRequestsTable)
+    .set({ status })
+    .where(eq(collabRequestsTable.id, id))
+    .returning();
+
+  if (status === "accepted") {
+    const [receiver] = await db.select({ displayName: usersTable.displayName })
+      .from(usersTable).where(eq(usersTable.id, userId));
+    await db.insert(notificationsTable).values({
+      userId: request.fromUserId,
+      fromUserId: userId,
+      roomId: 0,
+      message: `🎉 ${receiver?.displayName ?? "Someone"} accepted your collab request! Time to build something.`,
+    }).catch(() => {});
+  }
+
+  res.json(updated);
 });
 
 router.get("/collab-requests/sent", async (req, res) => {

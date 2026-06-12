@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, Cpu, Wifi, Users, Zap, Home, PlusSquare, UserPlus, LogIn, LogOut, User, ChevronDown } from "lucide-react";
+import { Menu, X, Cpu, Wifi, Users, Zap, Home, PlusSquare, UserPlus, LogIn, LogOut, User, ChevronDown, Inbox, Edit } from "lucide-react";
 import { LogoMark } from "@/components/LogoMark";
 import { motion, AnimatePresence } from "framer-motion";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/contexts/user-context";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
@@ -27,6 +28,18 @@ export function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const { currentUser, isLoading, setCurrentUser } = useCurrentUser();
   const { toast } = useToast();
+
+  const { data: inboxData } = useQuery<{ id: number; status: string }[]>({
+    queryKey: ["/api/collab-requests/incoming"],
+    queryFn: async () => {
+      const res = await fetch("/api/collab-requests/incoming", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!currentUser,
+    refetchInterval: 60_000,
+  });
+  const pendingInbox = inboxData?.filter((r) => r.status === "pending").length ?? 0;
 
   const isActive = (href: string) =>
     href === "/" ? location === "/" : location.startsWith(href);
@@ -85,6 +98,26 @@ export function Navbar() {
               My Profile
             </button>
           </Link>
+          <Link href="/edit-profile" onClick={() => setProfileOpen(false)}>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
+              <Edit className="h-3.5 w-3.5" />
+              Edit Profile
+            </button>
+          </Link>
+          <Link href="/inbox" onClick={() => setProfileOpen(false)}>
+            <button className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
+              <span className="flex items-center gap-2.5">
+                <Inbox className="h-3.5 w-3.5" />
+                Collab Inbox
+              </span>
+              {pendingInbox > 0 && (
+                <span className="text-[9px] bg-primary text-primary-foreground font-mono font-bold px-1.5 py-0.5 min-w-[18px] text-center">
+                  {pendingInbox}
+                </span>
+              )}
+            </button>
+          </Link>
+          <div className="h-px bg-border/30 my-1" />
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
@@ -139,6 +172,28 @@ export function Navbar() {
               <div className="h-8 w-24 bg-muted/30 animate-pulse" />
             ) : currentUser ? (
               <>
+                {/* Inbox link with pending badge */}
+                <Link href="/inbox">
+                  <button
+                    className="relative h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    title="Collab Inbox"
+                  >
+                    <Inbox className="h-4 w-4" />
+                    <AnimatePresence>
+                      {pendingInbox > 0 && (
+                        <motion.span
+                          key="inbox-badge"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          exit={{ scale: 0 }}
+                          className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center bg-primary text-primary-foreground text-[9px] font-mono font-bold px-0.5"
+                        >
+                          {pendingInbox > 9 ? "9+" : pendingInbox}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </Link>
                 <NotificationBell />
                 <div className="w-px h-5 bg-border/50 mx-1" />
                 <UserMenu />
@@ -260,6 +315,19 @@ export function Navbar() {
                         <Link href={`/profile/${currentUser.id}`} onClick={() => setMobileOpen(false)}>
                           <Button variant="outline" className="w-full rounded-none font-mono text-xs justify-start border-border/60">
                             <User className="h-3.5 w-3.5 mr-2" /> My Profile
+                          </Button>
+                        </Link>
+                        <Link href="/edit-profile" onClick={() => setMobileOpen(false)}>
+                          <Button variant="outline" className="w-full rounded-none font-mono text-xs justify-start border-border/60">
+                            <Edit className="h-3.5 w-3.5 mr-2" /> Edit Profile
+                          </Button>
+                        </Link>
+                        <Link href="/inbox" onClick={() => setMobileOpen(false)}>
+                          <Button variant="outline" className="w-full rounded-none font-mono text-xs justify-between border-border/60">
+                            <span className="flex items-center"><Inbox className="h-3.5 w-3.5 mr-2" /> Collab Inbox</span>
+                            {pendingInbox > 0 && (
+                              <span className="text-[9px] bg-primary text-primary-foreground font-mono font-bold px-1.5 py-0.5">{pendingInbox}</span>
+                            )}
                           </Button>
                         </Link>
                         <Link href="/create-room" onClick={() => setMobileOpen(false)}>

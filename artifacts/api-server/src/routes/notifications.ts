@@ -75,4 +75,50 @@ router.patch("/notifications/:id/read", async (req, res) => {
   res.json({ ...updated, fromUser, room });
 });
 
+router.get("/me/notifications", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const notifications = await db
+    .select()
+    .from(notificationsTable)
+    .where(eq(notificationsTable.userId, userId))
+    .orderBy(desc(notificationsTable.createdAt))
+    .limit(100);
+
+  const enriched = await Promise.all(
+    notifications.map(async (n) => {
+      let fromUser = undefined;
+      let room = undefined;
+      if (n.fromUserId) {
+        const [u] = await db.select({ id: usersTable.id, displayName: usersTable.displayName, username: usersTable.username })
+          .from(usersTable).where(eq(usersTable.id, n.fromUserId));
+        fromUser = u;
+      }
+      if (n.roomId && n.roomId > 0) {
+        const [r] = await db.select({ id: roomsTable.id, name: roomsTable.name })
+          .from(roomsTable).where(eq(roomsTable.id, n.roomId));
+        room = r;
+      }
+      return { ...n, fromUser, room };
+    })
+  );
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  res.json({ notifications: enriched, unreadCount });
+});
+
+router.patch("/me/notifications/read-all", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const result = await db
+    .update(notificationsTable)
+    .set({ isRead: true })
+    .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)))
+    .returning();
+
+  res.json({ updated: result.length });
+});
+
 export default router;

@@ -15,6 +15,9 @@ import CreateRoom from "@/pages/create-room";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import VerifyEmail from "@/pages/verify-email";
+import InboxPage from "@/pages/inbox";
+import NotificationsPage from "@/pages/notifications";
+import EditProfile from "@/pages/edit-profile";
 import { UserProvider } from "@/contexts/user-context";
 import { useOfflineQueueSync } from "@/hooks/use-offline-queue";
 
@@ -41,6 +44,9 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/inbox" component={InboxPage} />
+      <Route path="/notifications" component={NotificationsPage} />
+      <Route path="/edit-profile" component={EditProfile} />
       <Route component={NotFound} />
     </Switch>
   );
