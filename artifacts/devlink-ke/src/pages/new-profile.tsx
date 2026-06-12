@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
 import { queueRegistration } from "@/lib/offline-queue";
+import { validateEmailDomain } from "@/lib/email-validator";
 import { UserPlus, Code2, Trash2, Eye, EyeOff, Loader2, WifiOff, CheckCircle } from "lucide-react";
 
 const skillCategoryEnum = z.enum(["backend", "frontend", "mobile", "ai", "networking", "design", "devops", "other"]);
@@ -33,7 +34,10 @@ const profileSchema = z.object({
     .min(3, "At least 3 characters")
     .max(20, "Max 20 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, underscores only"),
-  email: z.string().email("Enter a valid email"),
+  email: z.string().email("Enter a valid email").refine((val) => {
+    const result = validateEmailDomain(val);
+    return result.valid;
+  }, (val) => ({ message: validateEmailDomain(val).reason ?? "Invalid email address." })),
   password: z
     .string()
     .min(8, "At least 8 characters")

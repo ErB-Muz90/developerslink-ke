@@ -5,6 +5,7 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { createAndSendVerification } from "./email-verification";
+import { isDisposableEmail } from "../lib/email-validator";
 
 declare module "express-session" {
   interface SessionData {
@@ -61,6 +62,10 @@ router.post("/auth/register", async (req, res) => {
     .from(usersTable)
     .where(eq(usersTable.email, email));
   if (existingEmail) return res.status(409).json({ error: "Email already registered" });
+
+  if (isDisposableEmail(email)) {
+    return res.status(400).json({ error: "Disposable or temporary email addresses are not allowed. Please use a real email address." });
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
