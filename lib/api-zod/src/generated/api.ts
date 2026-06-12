@@ -17,6 +17,93 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Register a new account
+ */
+export const RegisterBody = zod.object({
+  "username": zod.string(),
+  "email": zod.string().email(),
+  "password": zod.string(),
+  "displayName": zod.string(),
+  "bio": zod.string().optional(),
+  "location": zod.string().optional(),
+  "level": zod.enum(['beginner', 'intermediate', 'pro']).optional(),
+  "lookingFor": zod.string().optional(),
+  "githubUrl": zod.string().optional(),
+  "twitterUrl": zod.string().optional(),
+  "skills": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.enum(['backend', 'frontend', 'mobile', 'ai', 'networking', 'design', 'devops', 'other']),
+  "proficiency": zod.enum(['beginner', 'intermediate', 'pro'])
+})).optional()
+})
+
+
+/**
+ * @summary Log in
+ */
+export const LoginBody = zod.object({
+  "username": zod.string(),
+  "password": zod.string()
+})
+
+export const LoginResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "email": zod.string().nullish(),
+  "displayName": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "skills": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.enum(['backend', 'frontend', 'mobile', 'ai', 'networking', 'design', 'devops', 'other']),
+  "proficiency": zod.enum(['beginner', 'intermediate', 'pro'])
+})),
+  "level": zod.enum(['beginner', 'intermediate', 'pro']),
+  "githubUrl": zod.string().nullish(),
+  "twitterUrl": zod.string().nullish(),
+  "lookingFor": zod.string().nullish(),
+  "roomsJoined": zod.number(),
+  "postsCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Log out
+ */
+export const LogoutResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get current authenticated user
+ */
+export const GetMeResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "email": zod.string().nullish(),
+  "displayName": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "skills": zod.array(zod.object({
+  "name": zod.string(),
+  "category": zod.enum(['backend', 'frontend', 'mobile', 'ai', 'networking', 'design', 'devops', 'other']),
+  "proficiency": zod.enum(['beginner', 'intermediate', 'pro'])
+})),
+  "level": zod.enum(['beginner', 'intermediate', 'pro']),
+  "githubUrl": zod.string().nullish(),
+  "twitterUrl": zod.string().nullish(),
+  "lookingFor": zod.string().nullish(),
+  "roomsJoined": zod.number(),
+  "postsCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List all users
  */
 export const listUsersQueryLimitDefault = 20;
@@ -33,6 +120,7 @@ export const ListUsersQueryParams = zod.object({
 export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -84,6 +172,7 @@ export const GetUserParams = zod.object({
 export const GetUserResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -129,6 +218,7 @@ export const UpdateUserBody = zod.object({
 export const UpdateUserResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -179,6 +269,7 @@ export const GetTopBuildersQueryParams = zod.object({
 export const GetTopBuildersResponseItem = zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -336,6 +427,7 @@ export const GetLiveRoomActivityResponseItem = zod.object({
   "author": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -406,6 +498,7 @@ export const GetRoomPostsResponseItem = zod.object({
   "author": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -466,6 +559,7 @@ export const UpdatePostResponse = zod.object({
   "author": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -514,6 +608,7 @@ export const UpvotePostResponse = zod.object({
   "author": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -557,6 +652,7 @@ export const MatchDevelopersResponseItem = zod.object({
   "user": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -591,6 +687,7 @@ export const GetMatchSuggestionsResponseItem = zod.object({
   "user": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -647,6 +744,7 @@ export const ListNotificationsResponse = zod.object({
   "fromUser": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
@@ -714,6 +812,7 @@ export const MarkNotificationReadResponse = zod.object({
   "fromUser": zod.object({
   "id": zod.number(),
   "username": zod.string(),
+  "email": zod.string().nullish(),
   "displayName": zod.string(),
   "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),

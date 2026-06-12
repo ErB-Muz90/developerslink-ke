@@ -13,6 +13,8 @@ export type UserSkill = z.infer<typeof userSkillSchema>;
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").unique(),
+  passwordHash: text("password_hash"),
   displayName: text("display_name").notNull(),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),

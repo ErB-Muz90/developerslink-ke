@@ -11,11 +11,10 @@ type WsMessage =
 
 interface UseRoomSocketOptions {
   userId?: number;
-  onNotification?: (notification: any) => void;
 }
 
 export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}) {
-  const { userId, onNotification } = options;
+  const { userId } = options;
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,11 +56,14 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
           );
         }
 
-        if (msg.type === "new_notification" && onNotification) {
-          onNotification(msg.notification);
+        if (msg.type === "new_notification") {
+          // Broadcast globally so any mounted NotificationBell can pick it up
+          window.dispatchEvent(
+            new CustomEvent("devlink:notification", { detail: msg.notification })
+          );
         }
       } catch {
-        // ignore
+        // ignore malformed messages
       }
     };
 
@@ -70,7 +72,7 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
       reconnectTimer.current = setTimeout(() => connect(), 3000);
     };
     ws.onerror = () => ws.close();
-  }, [roomId, userId, queryClient, postsKey, onNotification]);
+  }, [roomId, userId, queryClient, postsKey]);
 
   useEffect(() => {
     isMounted.current = true;

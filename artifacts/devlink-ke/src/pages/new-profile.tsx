@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useCreateUser } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,36 +9,57 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Code2, Trash2 } from "lucide-react";
-import { Label } from "recharts";
+import { useCurrentUser } from "@/contexts/user-context";
+import { UserPlus, Code2, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 
-// Helper schemas
 const skillCategoryEnum = z.enum(["backend", "frontend", "mobile", "ai", "networking", "design", "devops", "other"]);
 const skillProficiencyEnum = z.enum(["beginner", "intermediate", "pro"]);
 
 const profileSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters").max(20).regex(/^[a-zA-Z0-9_]+$/, "Alphanumeric only"),
-  displayName: z.string().min(2, "Display name must be at least 2 characters"),
-  bio: z.string().max(500, "Bio too long").optional(),
+  username: z
+    .string()
+    .min(3, "At least 3 characters")
+    .max(20, "Max 20 characters")
+    .regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, underscores only"),
+  email: z.string().email("Enter a valid email"),
+  password: z
+    .string()
+    .min(8, "At least 8 characters")
+    .regex(/[A-Z]/, "Must contain an uppercase letter")
+    .regex(/[0-9]/, "Must contain a number"),
+  confirmPassword: z.string(),
+  displayName: z.string().min(2, "At least 2 characters"),
+  bio: z.string().max(500).optional(),
   location: z.string().optional(),
   level: z.enum(["beginner", "intermediate", "pro"]),
   lookingFor: z.string().optional(),
-  githubUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  twitterUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  githubUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+  twitterUrl: z.string().url("Enter a valid URL").optional().or(z.literal("")),
+}).refine((d) => d.password === d.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
+
+type FormValues = z.infer<typeof profileSchema>;
 
 export default function NewProfile() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
-  // Custom skills state since nested dynamic arrays in react-hook-form can be overkill for this aesthetic
-  const [skills, setSkills] = useState<Array<{name: string, category: any, proficiency: any}>>([]);
-  const [skillInput, setSkillInput] = useState({ name: "", category: "frontend", proficiency: "intermediate" });
+  const { refetchMe } = useCurrentUser();
 
-  const form = useForm<z.input<typeof profileSchema>>({
+  const [skills, setSkills] = useState<Array<{ name: string; category: any; proficiency: any }>>([]);
+  const [skillInput, setSkillInput] = useState({ name: "", category: "frontend", proficiency: "intermediate" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
       displayName: "",
       bio: "",
       location: "",
@@ -47,49 +67,59 @@ export default function NewProfile() {
       lookingFor: "",
       githubUrl: "",
       twitterUrl: "",
-    }
-  });
-
-  const createUser = useCreateUser({
-    mutation: {
-      onSuccess: (data) => {
-        toast({ title: "Profile created!", description: "Welcome to DevLink KE." });
-        setLocation(`/profile/${data.id}`);
-      },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to create profile. Username might be taken.", variant: "destructive" });
-      }
-    }
+    },
   });
 
   const addSkill = () => {
     if (!skillInput.name.trim()) return;
-    setSkills([...skills, { 
-      name: skillInput.name.trim(), 
-      category: skillInput.category as any, 
-      proficiency: skillInput.proficiency as any 
-    }]);
-    setSkillInput({ ...skillInput, name: "" }); // Reset name
+    setSkills([...skills, { name: skillInput.name.trim(), category: skillInput.category as any, proficiency: skillInput.proficiency as any }]);
+    setSkillInput({ ...skillInput, name: "" });
   };
 
-  const removeSkill = (index: number) => {
-    setSkills(skills.filter((_, i) => i !== index));
-  };
+  const removeSkill = (i: number) => setSkills(skills.filter((_, idx) => idx !== i));
 
-  const onSubmit = (data: z.output<typeof profileSchema>) => {
+  const onSubmit = async (data: FormValues) => {
     if (skills.length === 0) {
-      toast({ title: "Skills required", description: "Please add at least one skill", variant: "destructive" });
+      toast({ title: "Skills required", description: "Add at least one skill", variant: "destructive" });
       return;
     }
-    
-    createUser.mutate({
-      data: {
-        ...data,
-        githubUrl: data.githubUrl || undefined,
-        twitterUrl: data.twitterUrl || undefined,
-        skills: skills as any
+
+    setIsSubmitting(true);
+    try {
+      const { confirmPassword: _, ...payload } = data;
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...payload,
+          githubUrl: payload.githubUrl || undefined,
+          twitterUrl: payload.twitterUrl || undefined,
+          skills,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        if (body.error?.toLowerCase().includes("username")) {
+          form.setError("username", { message: body.error });
+        } else if (body.error?.toLowerCase().includes("email")) {
+          form.setError("email", { message: body.error });
+        } else {
+          toast({ title: "Registration failed", description: body.error ?? "Try again", variant: "destructive" });
+        }
+        return;
       }
-    });
+
+      const user = await res.json();
+      await refetchMe();
+      toast({ title: "Welcome to DevLink KE!", description: "Your profile is live." });
+      setLocation(`/profile/${user.id}`);
+    } catch {
+      toast({ title: "Error", description: "Something went wrong. Try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -100,31 +130,94 @@ export default function NewProfile() {
           INIT_PROFILE
         </h1>
         <p className="text-muted-foreground">
-          Create your builder profile to connect with the network. Be precise about your skills and goals.
+          Create your builder profile to connect with the network. Your credentials are private — only public profile info is visible.
         </p>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-          
-          {/* Identity Section */}
+
+          {/* Account Credentials */}
+          <div className="space-y-6">
+            <h3 className="font-mono font-bold text-lg text-primary border-l-2 border-primary pl-3">CREDENTIALS</h3>
+            <div className="space-y-4 bg-card p-6 border border-border">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="username" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Handle *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="johndoe_ke" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-[10px]">Unique. Letters, numbers, underscores.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Email *</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="you@example.com" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-[10px]">Private. Used for account recovery.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="password" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Password *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Min 8 chars, 1 uppercase, 1 number"
+                          className="rounded-none font-mono focus-visible:ring-primary pr-10"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Confirm Password *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showConfirm ? "text" : "password"}
+                          placeholder="Repeat your password"
+                          className="rounded-none font-mono focus-visible:ring-primary pr-10"
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                        <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+            </div>
+          </div>
+
+          {/* Identity */}
           <div className="space-y-6">
             <h3 className="font-mono font-bold text-lg text-secondary border-l-2 border-secondary pl-3">IDENTITY</h3>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-card p-6 border border-border">
-              <FormField control={form.control} name="username" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Handle</FormLabel>
-                  <FormControl>
-                    <Input placeholder="johndoe_ke" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              
               <FormField control={form.control} name="displayName" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Display Name</FormLabel>
+                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Display Name *</FormLabel>
                   <FormControl>
                     <Input placeholder="John Doe" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
                   </FormControl>
@@ -138,7 +231,7 @@ export default function NewProfile() {
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="rounded-none font-mono focus-visible:ring-primary">
-                        <SelectValue placeholder="Select level" />
+                        <SelectValue />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -160,14 +253,23 @@ export default function NewProfile() {
                   <FormMessage />
                 </FormItem>
               )} />
+
+              <FormField control={form.control} name="lookingFor" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Looking For</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Looking for a React developer..." className="rounded-none font-mono focus-visible:ring-primary" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
           </div>
 
-          {/* Details Section */}
+          {/* Details */}
           <div className="space-y-6">
             <h3 className="font-mono font-bold text-lg text-secondary border-l-2 border-secondary pl-3">DETAILS</h3>
-            
-            <div className="space-y-6 bg-card p-6 border border-border">
+            <div className="space-y-4 bg-card p-6 border border-border">
               <FormField control={form.control} name="bio" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Bio</FormLabel>
@@ -178,18 +280,7 @@ export default function NewProfile() {
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="lookingFor" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Current Objective / Looking For</FormLabel>
-                  <FormDescription className="text-[10px] font-mono">What are you trying to achieve on DevLink KE?</FormDescription>
-                  <FormControl>
-                    <Input placeholder="Looking for a frontend dev to help build a fintech MVP" className="rounded-none font-mono focus-visible:ring-primary" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="githubUrl" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-mono text-xs uppercase text-muted-foreground">GitHub URL</FormLabel>
@@ -199,7 +290,7 @@ export default function NewProfile() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                
+
                 <FormField control={form.control} name="twitterUrl" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="font-mono text-xs uppercase text-muted-foreground">Twitter / X URL</FormLabel>
@@ -213,16 +304,13 @@ export default function NewProfile() {
             </div>
           </div>
 
-          {/* Skills Section */}
+          {/* Skills */}
           <div className="space-y-6">
             <h3 className="font-mono font-bold text-lg text-primary border-l-2 border-primary pl-3 flex justify-between items-center">
               TECHNICAL_ARSENAL
               <span className="text-xs text-muted-foreground font-normal">At least 1 required</span>
             </h3>
-            
             <div className="bg-card p-6 border border-border space-y-6">
-              
-              {/* Added Skills */}
               {skills.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                   {skills.map((s, i) => (
@@ -243,39 +331,34 @@ export default function NewProfile() {
                 </div>
               )}
 
-              {/* Add Skill Form */}
               <div className="flex flex-col md:flex-row gap-3 items-end p-4 border border-dashed border-border bg-muted/5">
                 <div className="flex-1 w-full">
-                  <Label className="font-mono text-[10px] uppercase text-muted-foreground mb-1 block">Skill Name</Label>
-                  <Input 
-                    value={skillInput.name} 
-                    onChange={e => setSkillInput({...skillInput, name: e.target.value})} 
-                    placeholder="e.g. React, PostgreSQL" 
+                  <p className="font-mono text-[10px] uppercase text-muted-foreground mb-1">Skill Name</p>
+                  <Input
+                    value={skillInput.name}
+                    onChange={(e) => setSkillInput({ ...skillInput, name: e.target.value })}
+                    placeholder="e.g. React, PostgreSQL"
                     className="rounded-none font-mono h-9"
-                    onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkill(); } }}
                   />
                 </div>
                 <div className="w-full md:w-32">
-                  <Label className="font-mono text-[10px] uppercase text-muted-foreground mb-1 block">Category</Label>
-                  <Select value={skillInput.category} onValueChange={v => setSkillInput({...skillInput, category: v})}>
-                    <SelectTrigger className="rounded-none font-mono h-9">
-                      <SelectValue />
-                    </SelectTrigger>
+                  <p className="font-mono text-[10px] uppercase text-muted-foreground mb-1">Category</p>
+                  <Select value={skillInput.category} onValueChange={(v) => setSkillInput({ ...skillInput, category: v })}>
+                    <SelectTrigger className="rounded-none font-mono h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {skillCategoryEnum.options.map(opt => (
+                      {skillCategoryEnum.options.map((opt) => (
                         <SelectItem key={opt} value={opt} className="capitalize">{opt}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="w-full md:w-32">
-                  <Label className="font-mono text-[10px] uppercase text-muted-foreground mb-1 block">Proficiency</Label>
-                  <Select value={skillInput.proficiency} onValueChange={v => setSkillInput({...skillInput, proficiency: v})}>
-                    <SelectTrigger className="rounded-none font-mono h-9">
-                      <SelectValue />
-                    </SelectTrigger>
+                  <p className="font-mono text-[10px] uppercase text-muted-foreground mb-1">Proficiency</p>
+                  <Select value={skillInput.proficiency} onValueChange={(v) => setSkillInput({ ...skillInput, proficiency: v })}>
+                    <SelectTrigger className="rounded-none font-mono h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {skillProficiencyEnum.options.map(opt => (
+                      {skillProficiencyEnum.options.map((opt) => (
                         <SelectItem key={opt} value={opt} className="capitalize">{opt}</SelectItem>
                       ))}
                     </SelectContent>
@@ -285,18 +368,27 @@ export default function NewProfile() {
                   ADD
                 </Button>
               </div>
-
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full rounded-none font-mono text-base h-14 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(22,163,74,0.3)] transition-all"
-            disabled={createUser.isPending}
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full rounded-none font-mono text-base h-14 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(22,163,74,0.3)]"
           >
-            {createUser.isPending ? "INITIALIZING..." : "INITIALIZE_PROFILE"}
+            {isSubmitting ? (
+              <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> INITIALIZING...</>
+            ) : (
+              "INITIALIZE_PROFILE"
+            )}
           </Button>
 
+          <p className="text-center text-xs text-muted-foreground">
+            Already have an account?{" "}
+            <button type="button" onClick={() => setLocation("/")} className="text-primary hover:underline font-mono">
+              Go back and log in →
+            </button>
+          </p>
         </form>
       </Form>
     </div>

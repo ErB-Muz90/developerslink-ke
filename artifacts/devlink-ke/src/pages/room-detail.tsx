@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import {
   useGetRoom,
   useGetRoomPosts,
@@ -29,7 +29,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoomSocket } from "@/hooks/use-room-socket";
 import { useCurrentUser } from "@/contexts/user-context";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const ROOM_TYPE_COLOR: Record<string, string> = {
   discussion: "text-primary border-primary/30 bg-primary/5",
@@ -49,15 +48,9 @@ export default function RoomDetail() {
   const [summary, setSummary] = useState<any>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
-  const [incomingNotification, setIncomingNotification] = useState<any>(null);
-
-  const onNotification = useCallback((notif: any) => {
-    setIncomingNotification(notif);
-  }, []);
 
   const { isConnected } = useRoomSocket(roomId, {
     userId: currentUser?.id,
-    onNotification,
   });
 
   const { data: room, isLoading: roomLoading } = useGetRoom(roomId, {
@@ -471,10 +464,6 @@ export default function RoomDetail() {
         </div>
       </div>
 
-      {/* Hidden NotificationBell to receive incoming WS notifications */}
-      <div className="hidden">
-        <NotificationBell incomingNotification={incomingNotification} />
-      </div>
     </div>
   );
 }

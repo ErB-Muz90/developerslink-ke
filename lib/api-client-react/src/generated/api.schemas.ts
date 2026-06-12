@@ -9,10 +9,23 @@ export interface HealthStatus {
   status: string;
 }
 
-export type UserLevel = typeof UserLevel[keyof typeof UserLevel];
+export interface ApiError {
+  error: string;
+}
+
+export interface AuthMessage {
+  message: string;
+}
+
+export interface LoginInput {
+  username: string;
+  password: string;
+}
+
+export type RegisterInputLevel = typeof RegisterInputLevel[keyof typeof RegisterInputLevel];
 
 
-export const UserLevel = {
+export const RegisterInputLevel = {
   beginner: 'beginner',
   intermediate: 'intermediate',
   pro: 'pro',
@@ -47,9 +60,34 @@ export interface UserSkill {
   proficiency: UserSkillProficiency;
 }
 
+export interface RegisterInput {
+  username: string;
+  email: string;
+  password: string;
+  displayName: string;
+  bio?: string;
+  location?: string;
+  level?: RegisterInputLevel;
+  lookingFor?: string;
+  githubUrl?: string;
+  twitterUrl?: string;
+  skills?: UserSkill[];
+}
+
+export type UserLevel = typeof UserLevel[keyof typeof UserLevel];
+
+
+export const UserLevel = {
+  beginner: 'beginner',
+  intermediate: 'intermediate',
+  pro: 'pro',
+} as const;
+
 export interface User {
   id: number;
   username: string;
+  /** @nullable */
+  email?: string | null;
   displayName: string;
   /** @nullable */
   bio?: string | null;

@@ -6,9 +6,11 @@ import postsRouter from "./posts";
 import matchingRouter from "./matching";
 import aiRouter from "./ai";
 import notificationsRouter from "./notifications";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(healthRouter);
 router.use(usersRouter);
 router.use(roomsRouter);

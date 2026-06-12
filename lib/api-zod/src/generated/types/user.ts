@@ -11,6 +11,8 @@ import type { UserSkill } from './userSkill';
 export interface User {
   id: number;
   username: string;
+  /** @nullable */
+  email?: string | null;
   displayName: string;
   /** @nullable */
   bio?: string | null;

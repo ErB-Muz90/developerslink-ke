@@ -8,6 +8,8 @@
 
 export * from './aiSolution';
 export * from './aiSummary';
+export * from './apiError';
+export * from './authMessage';
 export * from './getLiveRoomActivityParams';
 export * from './getRoomPostsParams';
 export * from './getTopBuildersParams';
@@ -17,6 +19,7 @@ export * from './listRoomsParams';
 export * from './listRoomsType';
 export * from './listUsersLevel';
 export * from './listUsersParams';
+export * from './loginInput';
 export * from './matchCriteria';
 export * from './matchCriteriaLevel';
 export * from './matchResult';
@@ -27,6 +30,8 @@ export * from './postInput';
 export * from './postUpdate';
 export * from './readAllNotificationsInput';
 export * from './readAllNotificationsResult';
+export * from './registerInput';
+export * from './registerInputLevel';
 export * from './room';
 export * from './roomActivity';
 export * from './roomInput';
