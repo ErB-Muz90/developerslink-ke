@@ -10,6 +10,7 @@ import authRouter from "./auth";
 import passwordResetRouter from "./password-reset";
 import emailVerificationRouter from "./email-verification";
 import collabRequestsRouter from "./collab-requests";
+import profileViewsRouter from "./profile-views";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(matchingRouter);
 router.use(aiRouter);
 router.use(notificationsRouter);
 router.use(collabRequestsRouter);
+router.use(profileViewsRouter);
 
 export default router;

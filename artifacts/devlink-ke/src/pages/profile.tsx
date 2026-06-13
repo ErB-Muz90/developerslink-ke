@@ -9,8 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
 import {
   Github, Twitter, MapPin, Calendar, Terminal, Hash, MessageSquare,
-  Zap, Share2, Check, Loader2, Edit, ExternalLink, Users, ArrowLeft,
+  Zap, Share2, Check, Loader2, Edit, ExternalLink, Users, ArrowLeft, Eye,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { format } from "date-fns";
 
 const SKILL_CATEGORY_COLORS: Record<string, string> = {
@@ -149,6 +150,14 @@ export default function Profile() {
   const [copied, setCopied] = useState(false);
   const [hookUpOpen, setHookUpOpen] = useState(false);
   const [requestStatus, setRequestStatus] = useState<{ sent: boolean; status: string | null } | null>(null);
+  const [profileViewers, setProfileViewers] = useState<{
+    viewerId: number;
+    viewedAt: string;
+    displayName: string;
+    username: string;
+    avatarUrl: string | null;
+    level: string;
+  }[]>([]);
 
   const isOwnProfile = currentUser?.id === userId;
   const isLoggedIn = !!currentUser;
@@ -160,6 +169,19 @@ export default function Profile() {
       .then((d) => setRequestStatus(d))
       .catch(() => {});
   }, [userId, isLoggedIn, isOwnProfile]);
+
+  useEffect(() => {
+    if (!isLoggedIn || isOwnProfile || !userId) return;
+    fetch(`/api/profile-views/${userId}`, { method: "POST", credentials: "include" }).catch(() => {});
+  }, [userId, isLoggedIn, isOwnProfile]);
+
+  useEffect(() => {
+    if (!isOwnProfile || !userId) return;
+    fetch("/api/me/profile-views", { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setProfileViewers(d.viewers ?? []))
+      .catch(() => {});
+  }, [isOwnProfile, userId]);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -472,6 +494,66 @@ export default function Profile() {
                 </div>
               )}
             </motion.div>
+
+            {/* Who viewed my profile — own profile only */}
+            {isOwnProfile && (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <h2 className="flex items-center gap-2 font-mono font-bold text-sm text-muted-foreground mb-3 uppercase tracking-wider">
+                  <Eye className="h-4 w-4 text-primary" /> Who Viewed Your Profile
+                </h2>
+
+                {profileViewers.length === 0 ? (
+                  <div className="p-8 bg-card border border-dashed border-border text-center">
+                    <Eye className="h-6 w-6 mx-auto text-muted-foreground/30 mb-2" />
+                    <p className="text-sm text-muted-foreground/50 font-mono">No views in the last 30 days.</p>
+                    <p className="text-xs text-muted-foreground/40 mt-1">Share your profile to get noticed.</p>
+                  </div>
+                ) : (
+                  <div className="bg-card border border-border">
+                    <div className="px-4 py-2.5 border-b border-border/40 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-muted-foreground tracking-wider">
+                        {profileViewers.length} BUILDER{profileViewers.length !== 1 ? "S" : ""} · LAST 30 DAYS
+                      </span>
+                    </div>
+                    <div className="divide-y divide-border/30">
+                      {profileViewers.map((viewer) => (
+                        <Link key={viewer.viewerId} href={`/profile/${viewer.viewerId}`}>
+                          <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer">
+                            <div className="w-9 h-9 border border-border bg-muted flex-shrink-0 flex items-center justify-center overflow-hidden">
+                              {viewer.avatarUrl ? (
+                                <img src={viewer.avatarUrl} alt={viewer.displayName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs font-mono font-black text-muted-foreground/60 uppercase">
+                                  {viewer.displayName.substring(0, 2)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate">{viewer.displayName}</p>
+                              <p className="text-[10px] font-mono text-muted-foreground">@{viewer.username}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <span className={`text-[9px] font-mono uppercase px-2 py-0.5 border ${
+                                viewer.level === "pro"
+                                  ? "border-primary/50 text-primary bg-primary/8"
+                                  : viewer.level === "intermediate"
+                                  ? "border-secondary/50 text-secondary bg-secondary/8"
+                                  : "border-border text-muted-foreground"
+                              }`}>
+                                {viewer.level}
+                              </span>
+                              <p className="text-[10px] text-muted-foreground/60 font-mono mt-1">
+                                {formatDistanceToNow(new Date(viewer.viewedAt), { addSuffix: true })}
+                              </p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
 
           </div>
         </div>
