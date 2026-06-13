@@ -34,7 +34,7 @@ async function sendResetEmail(to: string, resetUrl: string): Promise<void> {
   const resend = new Resend(apiKey);
 
   await resend.emails.send({
-    from: "DevLink KE <noreply@devlink.ke>",
+    from: "DevLink KE <onboarding@resend.dev>",
     to,
     subject: "Reset your DevLink KE password",
     html: `

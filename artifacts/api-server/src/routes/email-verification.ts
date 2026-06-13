@@ -17,7 +17,7 @@ export async function sendVerificationEmail(email: string, verifyUrl: string): P
   const { Resend } = await import("resend");
   const resend = new Resend(apiKey);
   await resend.emails.send({
-    from: "DevLink KE <noreply@devlink.ke>",
+    from: "DevLink KE <onboarding@resend.dev>",
     to: email,
     subject: "Verify your DevLink KE email",
     html: `
