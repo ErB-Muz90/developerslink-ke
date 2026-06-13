@@ -4,7 +4,6 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createAndSendVerification } from "./email-verification";
 import { isDisposableEmail } from "../lib/email-validator";
 import { loginLimiter, registerLimiter } from "../lib/rate-limit";
 
@@ -72,15 +71,10 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
 
   const [user] = await db
     .insert(usersTable)
-    .values({ username, email, passwordHash, ...rest })
+    .values({ username, email, passwordHash, emailVerified: true, ...rest })
     .returning();
 
   req.session.userId = user.id;
-
-  if (user.email) {
-    createAndSendVerification(user.id, user.email).catch(() => {});
-  }
-
   res.status(201).json(safeUser(user));
 });
 
@@ -124,6 +118,33 @@ router.get("/auth/me", async (req, res) => {
   }
 
   res.json(safeUser(user));
+});
+
+router.patch("/me/password", async (req, res) => {
+  const userId = req.session.userId;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "currentPassword and newPassword are required" });
+  }
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    return res.status(400).json({ error: "New password must be at least 8 characters" });
+  }
+  if (!/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    return res.status(400).json({ error: "New password must contain an uppercase letter and a number" });
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+  if (!user || !user.passwordHash) return res.status(404).json({ error: "User not found" });
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) return res.status(401).json({ error: "Current password is incorrect" });
+
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
+
+  res.json({ message: "Password updated successfully" });
 });
 
 export default router;
