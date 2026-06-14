@@ -73,7 +73,7 @@ router.post("/match/developers", async (req, res) => {
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, limit);
 
-  res.json(results);
+  return res.json(results);
 });
 
 router.get("/match/suggestions/:userId", async (req, res) => {
@@ -96,7 +96,7 @@ router.get("/match/suggestions/:userId", async (req, res) => {
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 10);
 
-  res.json(results);
+  return res.json(results);
 });
 
 export default router;

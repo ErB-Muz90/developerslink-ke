@@ -80,9 +80,9 @@ router.post("/auth/verify-email", async (req, res) => {
   await db.update(emailVerificationTokensTable).set({ usedAt: new Date() }).where(eq(emailVerificationTokensTable.id, record.id));
 
   if (req.session.userId === record.userId) {
-    res.json({ message: "Email verified." });
+    return res.json({ message: "Email verified." });
   } else {
-    res.json({ message: "Email verified. You can now log in." });
+    return res.json({ message: "Email verified. You can now log in." });
   }
 });
 
@@ -98,7 +98,7 @@ router.post("/auth/resend-verification", resendVerificationLimiter, async (req, 
   if (!user.email) return res.status(400).json({ error: "No email address on this account" });
 
   await createAndSendVerification(userId, user.email);
-  res.json({ message: "Verification email sent." });
+  return res.json({ message: "Verification email sent." });
 });
 
 export default router;

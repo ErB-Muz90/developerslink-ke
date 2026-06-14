@@ -54,7 +54,7 @@ router.post("/collab-requests", async (req, res) => {
     message: `${fromUser?.displayName ?? "Someone"} wants to collaborate with you${message ? `: "${message.substring(0, 80)}${message.length > 80 ? "…" : ""}"` : "."}`,
   }).catch(() => {});
 
-  res.status(201).json(request);
+  return res.status(201).json(request);
 });
 
 router.get("/collab-requests/incoming", async (req, res) => {
@@ -75,7 +75,7 @@ router.get("/collab-requests/incoming", async (req, res) => {
     .where(eq(collabRequestsTable.toUserId, userId))
     .orderBy(desc(collabRequestsTable.createdAt));
 
-  res.json(requests);
+  return res.json(requests);
 });
 
 router.patch("/collab-requests/:id", async (req, res) => {
@@ -115,7 +115,7 @@ router.patch("/collab-requests/:id", async (req, res) => {
     }).catch(() => {});
   }
 
-  res.json(updated);
+  return res.json(updated);
 });
 
 router.get("/collab-requests/sent", async (req, res) => {
@@ -136,7 +136,7 @@ router.get("/collab-requests/sent", async (req, res) => {
     .where(eq(collabRequestsTable.fromUserId, userId))
     .orderBy(collabRequestsTable.createdAt);
 
-  res.json(requests);
+  return res.json(requests);
 });
 
 router.get("/collab-requests/check/:toUserId", async (req, res) => {
@@ -153,7 +153,7 @@ router.get("/collab-requests/check/:toUserId", async (req, res) => {
       eq(collabRequestsTable.toUserId, toUserId),
     ));
 
-  res.json({ sent: !!existing, status: existing?.status ?? null });
+  return res.json({ sent: !!existing, status: existing?.status ?? null });
 });
 
 export default router;

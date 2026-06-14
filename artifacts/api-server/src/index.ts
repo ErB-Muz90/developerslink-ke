@@ -30,7 +30,6 @@ if (process.env.VERCEL !== "1") {
     logger.error({ err }, "Server error");
     process.exit(1);
   });
-} else {
-  // For Vercel, export the app as a serverless function
-  export default app;
 }
+
+export default app;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ function useSent() {
 }
 
 function StatusChip({ status }: { status: string }) {
-  const cfg: Record<string, { cls: string; label: string; icon: JSX.Element }> = {
+  const cfg: Record<string, { cls: string; label: string; icon: ReactElement }> = {
     pending:  { cls: "text-amber-400 border-amber-400/30 bg-amber-400/5",  label: "PENDING",  icon: <Clock className="h-2.5 w-2.5" /> },
     accepted: { cls: "text-primary border-primary/30 bg-primary/5",        label: "ACCEPTED", icon: <Check className="h-2.5 w-2.5" /> },
     declined: { cls: "text-muted-foreground border-border bg-muted/20",    label: "DECLINED", icon: <X className="h-2.5 w-2.5" />    },

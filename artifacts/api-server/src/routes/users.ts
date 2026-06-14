@@ -43,7 +43,7 @@ router.get("/users", async (req, res) => {
     );
   }
 
-  res.json(users.map(safeUser));
+  return res.json(users.map(safeUser));
 });
 
 router.post("/users", async (req, res) => {
@@ -52,7 +52,7 @@ router.post("/users", async (req, res) => {
     return res.status(400).json({ error: "Invalid request body" });
   }
   const [user] = await db.insert(usersTable).values(body.data).returning();
-  res.status(201).json(user);
+  return res.status(201).json(user);
 });
 
 router.get("/users/stats/overview", async (req, res) => {
@@ -80,7 +80,7 @@ router.get("/users/stats/overview", async (req, res) => {
     levelMap[row.level] = Number(row.count);
   }
 
-  res.json({
+  return res.json({
     totalUsers: Number((totalUsersRes.rows[0] as any).count),
     totalRooms: Number((totalRoomsRes.rows[0] as any).count),
     totalPosts: Number((totalPostsRes.rows[0] as any).count),
@@ -101,7 +101,7 @@ router.get("/users/top-builders", async (req, res) => {
     .from(usersTable)
     .orderBy(sql`posts_count DESC, rooms_joined DESC`)
     .limit(limit);
-  res.json(users);
+  return res.json(users);
 });
 
 router.get("/users/:id", async (req, res) => {
@@ -110,7 +110,7 @@ router.get("/users/:id", async (req, res) => {
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.id));
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json(safeUser(user));
+  return res.json(safeUser(user));
 });
 
 router.patch("/users/:id", async (req, res) => {
@@ -130,7 +130,7 @@ router.patch("/users/:id", async (req, res) => {
     .where(eq(usersTable.id, params.data.id))
     .returning();
   if (!user) return res.status(404).json({ error: "User not found" });
-  res.json(safeUser(user));
+  return res.json(safeUser(user));
 });
 
 export default router;

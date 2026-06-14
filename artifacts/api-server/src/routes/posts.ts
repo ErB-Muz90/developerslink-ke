@@ -39,7 +39,7 @@ router.get("/posts", async (req, res) => {
     .offset(offset);
 
   const enriched = await Promise.all(posts.map(enrichPost));
-  res.json(enriched);
+  return res.json(enriched);
 });
 
 router.post("/rooms/:id/posts", async (req, res) => {
@@ -132,7 +132,7 @@ router.post("/rooms/:id/posts", async (req, res) => {
     }
   }
 
-  res.status(201).json(enriched);
+  return res.status(201).json(enriched);
 });
 
 router.patch("/posts/:id", async (req, res) => {
@@ -151,26 +151,24 @@ router.patch("/posts/:id", async (req, res) => {
 
   const enriched = await enrichPost(post);
   broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
-  res.json(enriched);
+  return res.json(enriched);
 });
 
 router.delete("/posts/:id", async (req, res) => {
    const params = DeletePostParams.safeParse(req.params);
    if (!params.success) {
-     res.status(400).json({ error: "Invalid id" });
-     return;
+     return res.status(400).json({ error: "Invalid id" });
    }
 
    const [deleted] = await db.delete(postsTable).where(eq(postsTable.id, params.data.id)).returning();
    if (deleted) broadcastToRoom(deleted.roomId, { type: "delete_post", postId: deleted.id });
-   res.status(204).send();
+   return res.status(204).send();
 });
 
 router.post("/posts/:id/upvote", async (req, res) => {
    const params = UpvotePostParams.safeParse(req.params);
    if (!params.success) {
-     res.status(400).json({ error: "Invalid id" });
-     return;
+     return res.status(400).json({ error: "Invalid id" });
    }
 
    const [post] = await db
@@ -179,13 +177,12 @@ router.post("/posts/:id/upvote", async (req, res) => {
      .where(eq(postsTable.id, params.data.id))
      .returning();
    if (!post) {
-     res.status(404).json({ error: "Post not found" });
-     return;
+     return res.status(404).json({ error: "Post not found" });
    }
 
    const enriched = await enrichPost(post);
    broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
-   res.json(enriched);
+   return res.json(enriched);
 });
 
 export default router;

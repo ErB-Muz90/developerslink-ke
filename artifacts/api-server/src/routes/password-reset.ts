@@ -91,7 +91,7 @@ router.post("/auth/forgot-password", async (req, res) => {
     logger.error({ err }, "Failed to send reset email");
   }
 
-  res.json({ message: "If that email is registered, a reset link has been sent." });
+  return res.json({ message: "If that email is registered, a reset link has been sent." });
 });
 
 router.post("/auth/reset-password", async (req, res) => {
@@ -129,7 +129,7 @@ router.post("/auth/reset-password", async (req, res) => {
     .set({ usedAt: new Date() })
     .where(eq(passwordResetTokensTable.id, record.id));
 
-  res.json({ message: "Password updated successfully." });
+  return res.json({ message: "Password updated successfully." });
 });
 
 export default router;

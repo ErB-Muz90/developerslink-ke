@@ -39,7 +39,7 @@ router.get("/notifications", async (req, res) => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  res.json({ notifications: enriched, unreadCount });
+  return res.json({ notifications: enriched, unreadCount });
 });
 
 router.patch("/notifications/read-all", async (req, res) => {
@@ -52,7 +52,7 @@ router.patch("/notifications/read-all", async (req, res) => {
     .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)))
     .returning();
 
-  res.json({ updated: result.length });
+  return res.json({ updated: result.length });
 });
 
 router.patch("/notifications/:id/read", async (req, res) => {
@@ -72,7 +72,7 @@ router.patch("/notifications/:id/read", async (req, res) => {
     : [undefined];
   const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, updated.roomId));
 
-  res.json({ ...updated, fromUser, room });
+  return res.json({ ...updated, fromUser, room });
 });
 
 router.get("/me/notifications", async (req, res) => {
@@ -105,7 +105,7 @@ router.get("/me/notifications", async (req, res) => {
   );
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-  res.json({ notifications: enriched, unreadCount });
+  return res.json({ notifications: enriched, unreadCount });
 });
 
 router.patch("/me/notifications/read-all", async (req, res) => {
@@ -118,7 +118,7 @@ router.patch("/me/notifications/read-all", async (req, res) => {
     .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)))
     .returning();
 
-  res.json({ updated: result.length });
+  return res.json({ updated: result.length });
 });
 
 export default router;

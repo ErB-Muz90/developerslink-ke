@@ -34,7 +34,7 @@ router.get("/ai/summarize/:roomId", async (req, res) => {
       ? `${room.name} is a new ${room.type} room focused on ${roomSkills.join(", ")}. No discussions yet — be the first to post!`
       : `${room.name} has had ${postCount} recent message${postCount > 1 ? "s" : ""}. The conversation spans ${roomSkills.join(", ")} topics. Members are ${room.type === "learning" ? "learning and mentoring" : room.type === "project" ? "collaborating on real builds" : "sharing insights and discussing ideas"}.`;
 
-  res.json({
+  return res.json({
     roomId: params.data.roomId,
     summary,
     keyTopics,
@@ -64,7 +64,7 @@ router.post("/ai/suggest-solution", async (req, res) => {
     `Post your problem in the relevant Learning room for mentor guidance`,
   ];
 
-  res.json({
+  return res.json({
     solution: `For "${problem.slice(0, 80)}${problem.length > 80 ? "..." : ""}": Start by isolating the root cause. ${context ? `Given context: ${context}. ` : ""}Use ${techStack} to implement a lean solution — validate early with peers in DevLink KE rooms before going deep.`,
     steps,
     resources,

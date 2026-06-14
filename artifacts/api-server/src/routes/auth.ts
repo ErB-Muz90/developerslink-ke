@@ -81,7 +81,7 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
     createAndSendVerification(user.id, user.email).catch(() => {});
   }
 
-  res.status(201).json(safeUser(user));
+  return res.status(201).json(safeUser(user));
 });
 
 router.post("/auth/login", loginLimiter, async (req, res) => {
@@ -102,14 +102,14 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
   if (!valid) return res.status(401).json({ error: "Invalid username or password" });
 
   req.session.userId = user.id;
-  res.json(safeUser(user));
+  return res.json(safeUser(user));
 });
 
 router.post("/auth/logout", async (req, res) => {
   req.session.destroy((err) => {
     if (err) return res.status(500).json({ error: "Failed to logout" });
     res.clearCookie("devlink.sid");
-    res.json({ message: "Logged out" });
+    return res.json({ message: "Logged out" });
   });
 });
 
@@ -123,7 +123,7 @@ router.get("/auth/me", async (req, res) => {
     return res.status(401).json({ error: "Session invalid" });
   }
 
-  res.json(safeUser(user));
+  return res.json(safeUser(user));
 });
 
 router.patch("/me/password", async (req, res) => {
@@ -150,7 +150,7 @@ router.patch("/me/password", async (req, res) => {
   const newHash = await bcrypt.hash(newPassword, 12);
   await db.update(usersTable).set({ passwordHash: newHash }).where(eq(usersTable.id, userId));
 
-  res.json({ message: "Password updated successfully" });
+  return res.json({ message: "Password updated successfully" });
 });
 
 export default router;

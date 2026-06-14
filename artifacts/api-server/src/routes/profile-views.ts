@@ -10,8 +10,7 @@ router.post("/profile-views/:profileId", async (req, res) => {
    const viewerId = req.session.userId;
 
    if (!viewerId || !profileId || isNaN(profileId) || viewerId === profileId) {
-     res.status(204).send();
-     return;
+     return res.status(204).send();
    }
 
    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -31,15 +30,13 @@ router.post("/profile-views/:profileId", async (req, res) => {
      await db.insert(profileViewsTable).values({ viewerId, profileId });
    }
 
-   res.status(204).send();
-   return;
+   return res.status(204).send();
 });
 
 router.get("/me/profile-views", async (req, res) => {
    const userId = req.session.userId;
    if (!userId) {
-     res.status(401).json({ error: "Not authenticated" });
-     return;
+     return res.status(401).json({ error: "Not authenticated" });
    }
 
    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -71,8 +68,7 @@ router.get("/me/profile-views", async (req, res) => {
      .orderBy(desc(sql`MAX(${profileViewsTable.viewedAt})`))
      .limit(50);
 
-   res.json({ viewers, total: viewers.length });
-   return;
+   return res.json({ viewers, total: viewers.length });
 });
 
 export default router;
