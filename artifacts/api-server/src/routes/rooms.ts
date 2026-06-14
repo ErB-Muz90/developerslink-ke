@@ -16,34 +16,42 @@ import {
 const router = Router();
 
 router.get("/rooms", async (req, res) => {
-  const query = ListRoomsQueryParams.safeParse(req.query);
-  if (!query.success) return res.status(400).json({ error: "Invalid query" });
+   const query = ListRoomsQueryParams.safeParse(req.query);
+   if (!query.success) {
+     res.status(400).json({ error: "Invalid query" });
+     return;
+   }
 
-  const { type, skill, limit = 20, offset = 0 } = query.data;
+   const { type, skill, limit = 20, offset = 0 } = query.data;
 
-  let rooms = await db
-    .select()
-    .from(roomsTable)
-    .orderBy(desc(roomsTable.lastActiveAt))
-    .limit(limit)
-    .offset(offset);
+   let rooms = await db
+     .select()
+     .from(roomsTable)
+     .orderBy(desc(roomsTable.lastActiveAt))
+     .limit(limit)
+     .offset(offset);
 
-  if (type) rooms = rooms.filter((r) => r.type === type);
-  if (skill) {
-    rooms = rooms.filter((r) =>
-      (r.skills as string[]).some((s) => s.toLowerCase().includes(skill.toLowerCase()))
-    );
-  }
+   if (type) rooms = rooms.filter((r) => r.type === type);
+   if (skill) {
+     rooms = rooms.filter((r) =>
+       (r.skills as string[]).some((s) => s.toLowerCase().includes(skill.toLowerCase()))
+     );
+   }
 
-  res.json(rooms);
+   res.json(rooms);
+   return;
 });
 
 router.post("/rooms", async (req, res) => {
-  const body = CreateRoomBody.safeParse(req.body);
-  if (!body.success) return res.status(400).json({ error: "Invalid request body" });
+   const body = CreateRoomBody.safeParse(req.body);
+   if (!body.success) {
+     res.status(400).json({ error: "Invalid request body" });
+     return;
+   }
 
-  const [room] = await db.insert(roomsTable).values(body.data).returning();
-  res.status(201).json(room);
+   const [room] = await db.insert(roomsTable).values(body.data).returning();
+   res.status(201).json(room);
+   return;
 });
 
 router.get("/rooms/live-activity", async (req, res) => {
@@ -87,12 +95,20 @@ router.get("/rooms/live-activity", async (req, res) => {
 });
 
 router.get("/rooms/:id", async (req, res) => {
-  const params = GetRoomParams.safeParse(req.params);
-  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+   const params = GetRoomParams.safeParse(req.params);
+   if (!params.success) {
+     res.status(400).json({ error: "Invalid id" });
+     return;
+   }
 
-  const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
-  if (!room) return res.status(404).json({ error: "Room not found" });
-  res.json(room);
+   const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
+   if (!room) {
+     res.status(404).json({ error: "Room not found" });
+     return;
+   }
+
+   res.json(room);
+   return;
 });
 
 router.patch("/rooms/:id", async (req, res) => {

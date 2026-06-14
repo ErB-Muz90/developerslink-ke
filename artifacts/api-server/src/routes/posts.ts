@@ -155,28 +155,37 @@ router.patch("/posts/:id", async (req, res) => {
 });
 
 router.delete("/posts/:id", async (req, res) => {
-  const params = DeletePostParams.safeParse(req.params);
-  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+   const params = DeletePostParams.safeParse(req.params);
+   if (!params.success) {
+     res.status(400).json({ error: "Invalid id" });
+     return;
+   }
 
-  const [deleted] = await db.delete(postsTable).where(eq(postsTable.id, params.data.id)).returning();
-  if (deleted) broadcastToRoom(deleted.roomId, { type: "delete_post", postId: deleted.id });
-  res.status(204).send();
+   const [deleted] = await db.delete(postsTable).where(eq(postsTable.id, params.data.id)).returning();
+   if (deleted) broadcastToRoom(deleted.roomId, { type: "delete_post", postId: deleted.id });
+   res.status(204).send();
 });
 
 router.post("/posts/:id/upvote", async (req, res) => {
-  const params = UpvotePostParams.safeParse(req.params);
-  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+   const params = UpvotePostParams.safeParse(req.params);
+   if (!params.success) {
+     res.status(400).json({ error: "Invalid id" });
+     return;
+   }
 
-  const [post] = await db
-    .update(postsTable)
-    .set({ upvotes: sql`${postsTable.upvotes} + 1` })
-    .where(eq(postsTable.id, params.data.id))
-    .returning();
-  if (!post) return res.status(404).json({ error: "Post not found" });
+   const [post] = await db
+     .update(postsTable)
+     .set({ upvotes: sql`${postsTable.upvotes} + 1` })
+     .where(eq(postsTable.id, params.data.id))
+     .returning();
+   if (!post) {
+     res.status(404).json({ error: "Post not found" });
+     return;
+   }
 
-  const enriched = await enrichPost(post);
-  broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
-  res.json(enriched);
+   const enriched = await enrichPost(post);
+   broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
+   res.json(enriched);
 });
 
 export default router;
