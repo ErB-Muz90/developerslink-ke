@@ -2,14 +2,16 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { profileViewsTable, usersTable } from "@workspace/db";
 import { eq, and, gt, desc, sql } from "drizzle-orm";
+import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
 
-router.post("/profile-views/:profileId", async (req, res) => {
-   const profileId = parseInt(req.params.profileId);
-   const viewerId = req.session.userId;
+router.post("/profile-views/:profileId", requireAuth, async (req, res) => {
+   const rawProfileId = req.params.profileId;
+   const profileId = typeof rawProfileId === "string" ? parseInt(rawProfileId) : NaN;
+   const viewerId = req.session.userId!;
 
-   if (!viewerId || !profileId || isNaN(profileId) || viewerId === profileId) {
+   if (!profileId || isNaN(profileId) || viewerId === profileId) {
      return res.status(204).send();
    }
 
@@ -33,11 +35,8 @@ router.post("/profile-views/:profileId", async (req, res) => {
    return res.status(204).send();
 });
 
-router.get("/me/profile-views", async (req, res) => {
-   const userId = req.session.userId;
-   if (!userId) {
-     return res.status(401).json({ error: "Not authenticated" });
-   }
+router.get("/me/profile-views", requireAuth, async (req, res) => {
+   const userId = req.session.userId!;
 
    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 

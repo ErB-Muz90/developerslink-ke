@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createAndSendVerification } from "./email-verification";
 import { isDisposableEmail } from "../lib/email-validator";
 import { loginLimiter, registerLimiter } from "../lib/rate-limit";
+import { requireAuth } from "../lib/auth-middleware";
 
 declare module "express-session" {
   interface SessionData {
@@ -113,9 +114,8 @@ router.post("/auth/logout", async (req, res) => {
   });
 });
 
-router.get("/auth/me", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.get("/auth/me", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!user) {
@@ -126,9 +126,8 @@ router.get("/auth/me", async (req, res) => {
   return res.json(safeUser(user));
 });
 
-router.patch("/me/password", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.patch("/me/password", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const { currentPassword, newPassword } = req.body ?? {};
   if (!currentPassword || !newPassword) {

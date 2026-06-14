@@ -1,83 +1,67 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { notificationsTable, usersTable, roomsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
 
-router.get("/notifications", async (req, res) => {
-  const userId = parseInt(req.query["userId"] as string);
-  const unreadOnly = req.query["unreadOnly"] === "true";
+type EnrichedNotification = typeof notificationsTable.$inferSelect & {
+  fromUser: Partial<typeof usersTable.$inferSelect> | null;
+  room: Partial<typeof roomsTable.$inferSelect> | null;
+};
 
-  if (!userId || isNaN(userId)) {
-    return res.status(400).json({ error: "userId is required" });
-  }
+async function enrichNotifications(
+  notifications: (typeof notificationsTable.$inferSelect)[]
+): Promise<EnrichedNotification[]> {
+  if (notifications.length === 0) return [];
 
-  const conditions = [eq(notificationsTable.userId, userId)];
-  if (unreadOnly) conditions.push(eq(notificationsTable.isRead, false));
+  // Batch-fetch fromUsers
+  const fromUserIds = [...new Set(notifications.map((n) => n.fromUserId).filter(Boolean))] as number[];
+  const fromUsers = fromUserIds.length > 0
+    ? await db
+        .select({ id: usersTable.id, displayName: usersTable.displayName, username: usersTable.username })
+        .from(usersTable)
+        .where(sql`${usersTable.id} IN (${sql.join(fromUserIds.map((id) => sql`${id}`), sql`, `)})`)
+    : [];
+  const fromUserMap = new Map(fromUsers.map((u) => [u.id, u]));
 
-  const notifications = await db
-    .select()
-    .from(notificationsTable)
-    .where(conditions.length === 1 ? conditions[0] : and(...conditions))
-    .orderBy(desc(notificationsTable.createdAt))
-    .limit(50);
+  // Batch-fetch rooms
+  const roomIds = [...new Set(notifications.map((n) => n.roomId).filter((id): id is number => id !== null && id > 0))];
+  const rooms = roomIds.length > 0
+    ? await db
+        .select({ id: roomsTable.id, name: roomsTable.name })
+        .from(roomsTable)
+        .where(sql`${roomsTable.id} IN (${sql.join(roomIds.map((id) => sql`${id}`), sql`, `)})`)
+    : [];
+  const roomMap = new Map(rooms.map((r) => [r.id, r]));
 
-  const enriched = await Promise.all(
-    notifications.map(async (n) => {
-      let fromUser = undefined;
-      let room = undefined;
-      if (n.fromUserId) {
-        const [u] = await db.select().from(usersTable).where(eq(usersTable.id, n.fromUserId));
-        fromUser = u;
-      }
-      const [r] = await db.select().from(roomsTable).where(eq(roomsTable.id, n.roomId));
-      room = r;
-      return { ...n, fromUser, room };
-    })
-  );
+  return notifications.map((n) => ({
+    ...n,
+    fromUser: n.fromUserId ? (fromUserMap.get(n.fromUserId) ?? null) : null,
+    room: n.roomId != null && n.roomId > 0 ? (roomMap.get(n.roomId) ?? null) : null,
+  }));
+}
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-  return res.json({ notifications: enriched, unreadCount });
-});
-
-router.patch("/notifications/read-all", async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: "userId is required" });
-
-  const result = await db
-    .update(notificationsTable)
-    .set({ isRead: true })
-    .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.isRead, false)))
-    .returning();
-
-  return res.json({ updated: result.length });
-});
-
-router.patch("/notifications/:id/read", async (req, res) => {
-  const id = parseInt(req.params["id"] ?? "0");
-  if (!id) return res.status(400).json({ error: "Invalid id" });
+router.patch("/notifications/:id/read", requireAuth, async (req, res) => {
+  const rawId = req.params["id"];
+  const id = typeof rawId === "string" ? parseInt(rawId) : 0;
+  if (!id || isNaN(id)) return res.status(400).json({ error: "Invalid id" });
 
   const [updated] = await db
     .update(notificationsTable)
     .set({ isRead: true })
-    .where(eq(notificationsTable.id, id))
+    .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, req.session.userId!)))
     .returning();
 
   if (!updated) return res.status(404).json({ error: "Notification not found" });
 
-  const [fromUser] = updated.fromUserId
-    ? await db.select().from(usersTable).where(eq(usersTable.id, updated.fromUserId))
-    : [undefined];
-  const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, updated.roomId));
-
-  return res.json({ ...updated, fromUser, room });
+  const [enriched] = await enrichNotifications([updated]);
+  return res.json(enriched);
 });
 
-router.get("/me/notifications", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.get("/me/notifications", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const notifications = await db
     .select()
@@ -86,31 +70,14 @@ router.get("/me/notifications", async (req, res) => {
     .orderBy(desc(notificationsTable.createdAt))
     .limit(100);
 
-  const enriched = await Promise.all(
-    notifications.map(async (n) => {
-      let fromUser = undefined;
-      let room = undefined;
-      if (n.fromUserId) {
-        const [u] = await db.select({ id: usersTable.id, displayName: usersTable.displayName, username: usersTable.username })
-          .from(usersTable).where(eq(usersTable.id, n.fromUserId));
-        fromUser = u;
-      }
-      if (n.roomId && n.roomId > 0) {
-        const [r] = await db.select({ id: roomsTable.id, name: roomsTable.name })
-          .from(roomsTable).where(eq(roomsTable.id, n.roomId));
-        room = r;
-      }
-      return { ...n, fromUser, room };
-    })
-  );
-
+  const enriched = await enrichNotifications(notifications);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+
   return res.json({ notifications: enriched, unreadCount });
 });
 
-router.patch("/me/notifications/read-all", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.patch("/me/notifications/read-all", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const result = await db
     .update(notificationsTable)

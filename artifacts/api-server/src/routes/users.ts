@@ -37,10 +37,13 @@ router.get("/users", async (req, res) => {
     .limit(limit)
     .offset(offset);
 
+  // Skill filter uses JSONB which requires in-memory filtering
   if (skill) {
-    users = users.filter((u) =>
-      (u.skills as any[]).some((s: any) => s.name.toLowerCase().includes(skill.toLowerCase()))
-    );
+    const skillLower = skill.toLowerCase();
+    users = users.filter((u) => {
+      const skills = u.skills as { name: string; category: string; proficiency: string }[];
+      return skills.some((s) => s.name.toLowerCase().includes(skillLower));
+    });
   }
 
   return res.json(users.map(safeUser));
@@ -69,21 +72,27 @@ router.get("/users/stats/overview", async (req, res) => {
   const allUsers = await db.select({ skills: usersTable.skills }).from(usersTable);
   const categoryCountMap: Record<string, number> = {};
   for (const u of allUsers) {
-    for (const s of (u.skills as any[])) {
+    const skills = u.skills as { name: string; category: string; proficiency: string }[];
+    for (const s of skills) {
       categoryCountMap[s.category] = (categoryCountMap[s.category] || 0) + 1;
     }
   }
   const byCategory = Object.entries(categoryCountMap).map(([category, count]) => ({ category, count }));
 
   const levelMap: Record<string, number> = { beginner: 0, intermediate: 0, pro: 0 };
-  for (const row of levelCounts.rows as any[]) {
+  const rows = levelCounts.rows as { level: string; count: string }[];
+  for (const row of rows) {
     levelMap[row.level] = Number(row.count);
   }
 
+  const firstTotalRow = totalUsersRes.rows[0] as { count: string } | undefined;
+  const firstRoomRow = totalRoomsRes.rows[0] as { count: string } | undefined;
+  const firstPostRow = totalPostsRes.rows[0] as { count: string } | undefined;
+
   return res.json({
-    totalUsers: Number((totalUsersRes.rows[0] as any).count),
-    totalRooms: Number((totalRoomsRes.rows[0] as any).count),
-    totalPosts: Number((totalPostsRes.rows[0] as any).count),
+    totalUsers: firstTotalRow ? Number(firstTotalRow.count) : 0,
+    totalRooms: firstRoomRow ? Number(firstRoomRow.count) : 0,
+    totalPosts: firstPostRow ? Number(firstPostRow.count) : 0,
     byLevel: {
       beginner: levelMap.beginner,
       intermediate: levelMap.intermediate,

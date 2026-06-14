@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { collabRequestsTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
+import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
 
@@ -11,9 +12,8 @@ const sendSchema = z.object({
   message: z.string().max(400).optional(),
 });
 
-router.post("/collab-requests", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.post("/collab-requests", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const parsed = sendSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
@@ -50,16 +50,15 @@ router.post("/collab-requests", async (req, res) => {
   await db.insert(notificationsTable).values({
     userId: toUserId,
     fromUserId: userId,
-    roomId: 0,
+    roomId: null,
     message: `${fromUser?.displayName ?? "Someone"} wants to collaborate with you${message ? `: "${message.substring(0, 80)}${message.length > 80 ? "…" : ""}"` : "."}`,
   }).catch(() => {});
 
   return res.status(201).json(request);
 });
 
-router.get("/collab-requests/incoming", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.get("/collab-requests/incoming", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const requests = await db.select({
     id: collabRequestsTable.id,
@@ -78,11 +77,11 @@ router.get("/collab-requests/incoming", async (req, res) => {
   return res.json(requests);
 });
 
-router.patch("/collab-requests/:id", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.patch("/collab-requests/:id", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
-  const id = parseInt(req.params["id"] ?? "0");
+  const rawId = req.params["id"];
+  const id = typeof rawId === "string" ? parseInt(rawId) : 0;
   if (!id) return res.status(400).json({ error: "Invalid id" });
 
   const { action } = req.body ?? {};
@@ -110,7 +109,7 @@ router.patch("/collab-requests/:id", async (req, res) => {
     await db.insert(notificationsTable).values({
       userId: request.fromUserId,
       fromUserId: userId,
-      roomId: 0,
+      roomId: null,
       message: `🎉 ${receiver?.displayName ?? "Someone"} accepted your collab request! Time to build something.`,
     }).catch(() => {});
   }
@@ -118,9 +117,8 @@ router.patch("/collab-requests/:id", async (req, res) => {
   return res.json(updated);
 });
 
-router.get("/collab-requests/sent", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+router.get("/collab-requests/sent", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
   const requests = await db.select({
     id: collabRequestsTable.id,
@@ -139,11 +137,11 @@ router.get("/collab-requests/sent", async (req, res) => {
   return res.json(requests);
 });
 
-router.get("/collab-requests/check/:toUserId", async (req, res) => {
-  const userId = req.session.userId;
-  if (!userId) return res.status(401).json({ sent: false });
+router.get("/collab-requests/check/:toUserId", requireAuth, async (req, res) => {
+  const userId = req.session.userId!;
 
-  const toUserId = parseInt(req.params.toUserId);
+  const rawToUserId = req.params.toUserId;
+  const toUserId = typeof rawToUserId === "string" ? parseInt(rawToUserId) : NaN;
   if (isNaN(toUserId)) return res.status(400).json({ error: "Invalid id" });
 
   const [existing] = await db.select({ id: collabRequestsTable.id, status: collabRequestsTable.status })

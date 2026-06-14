@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const roomsTable = pgTable("rooms", {
   id: serial("id").primaryKey(),
@@ -12,7 +13,7 @@ export const roomsTable = pgTable("rooms", {
   postCount: integer("post_count").notNull().default(0),
   isPinned: boolean("is_pinned").notNull().default(false),
   isPrivate: boolean("is_private").notNull().default(false),
-  createdByUserId: integer("created_by_user_id"),
+  createdByUserId: integer("created_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastActiveAt: timestamp("last_active_at").notNull().defaultNow(),
 });

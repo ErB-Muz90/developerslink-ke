@@ -1,41 +1,46 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bell, CheckCheck, ChevronRight, Hash } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  useListNotifications,
-  useMarkAllNotificationsRead,
-  useMarkNotificationRead,
-  getListNotificationsQueryKey,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCurrentUser } from "@/contexts/user-context";
+
+interface NotifData {
+  id: number;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  userId: number;
+  fromUser?: { id: number; displayName: string; username: string } | null;
+  room?: { id: number; name: string } | null;
+}
+
+interface NotifResponse {
+  notifications: NotifData[];
+  unreadCount: number;
+}
 
 export function NotificationBell() {
   const { currentUser } = useCurrentUser();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [flashCount, setFlashCount] = useState(false);
+  const notifiedIds = useRef(new Set<number>());
 
-  const notifKey = currentUser
-    ? getListNotificationsQueryKey({ userId: currentUser.id })
-    : ["disabled"];
+  const notifKey = ["/api/me/notifications"];
 
-  const { data } = useListNotifications(
-    { userId: currentUser?.id ?? 0 },
-    {
-      query: {
-        enabled: !!currentUser,
-        queryKey: notifKey as any,
-        refetchInterval: 30_000,
-      },
-    }
-  );
-
-  const markAll = useMarkAllNotificationsRead();
-  const markOne = useMarkNotificationRead();
+  const { data } = useQuery<NotifResponse>({
+    queryKey: notifKey,
+    queryFn: async () => {
+      const res = await fetch("/api/me/notifications", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!currentUser,
+    refetchInterval: 30_000,
+  });
 
   const unreadCount = data?.unreadCount ?? 0;
 
@@ -47,9 +52,13 @@ export function NotificationBell() {
       const notification = (e as CustomEvent).detail;
       if (!notification || notification.userId !== currentUser.id) return;
 
-      queryClient.setQueryData(notifKey as any, (old: any) => {
+      // Prevent duplicate notification adds
+      if (notifiedIds.current.has(notification.id)) return;
+      notifiedIds.current.add(notification.id);
+
+      queryClient.setQueryData(notifKey, (old: NotifResponse | undefined) => {
         if (!old) return { notifications: [notification], unreadCount: 1 };
-        const exists = old.notifications.some((n: any) => n.id === notification.id);
+        const exists = old.notifications.some((n) => n.id === notification.id);
         if (exists) return old;
         return {
           notifications: [notification, ...old.notifications],
@@ -63,34 +72,30 @@ export function NotificationBell() {
 
     window.addEventListener("devlink:notification", handler);
     return () => window.removeEventListener("devlink:notification", handler);
-  }, [currentUser, queryClient, notifKey]);
+  }, [currentUser, queryClient]);
 
   const handleMarkAll = () => {
     if (!currentUser) return;
-    markAll.mutate(
-      { data: { userId: currentUser.id } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: notifKey as any }) }
-    );
+    fetch("/api/me/notifications/read-all", { method: "PATCH", credentials: "include" })
+      .then(() => queryClient.invalidateQueries({ queryKey: notifKey }))
+      .catch(() => {});
   };
 
   const handleMarkOne = (id: number) => {
-    markOne.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          queryClient.setQueryData(notifKey as any, (old: any) => {
-            if (!old) return old;
-            return {
-              ...old,
-              notifications: old.notifications.map((n: any) =>
-                n.id === id ? { ...n, isRead: true } : n
-              ),
-              unreadCount: Math.max(0, old.unreadCount - 1),
-            };
-          });
-        },
-      }
-    );
+    fetch(`/api/notifications/${id}/read`, { method: "PATCH", credentials: "include" })
+      .then(() => {
+        queryClient.setQueryData(notifKey, (old: NotifResponse | undefined) => {
+          if (!old) return old;
+          return {
+            ...old,
+            notifications: old.notifications.map((n) =>
+              n.id === id ? { ...n, isRead: true } : n
+            ),
+            unreadCount: Math.max(0, old.unreadCount - 1),
+          };
+        });
+      })
+      .catch(() => {});
   };
 
   if (!currentUser) return null;
@@ -137,10 +142,8 @@ export function NotificationBell() {
               </span>
             )}
           </div>
-          {unreadCount > 0 && (
-            <button
+          {unreadCount > 0 && (              <button
               onClick={handleMarkAll}
-              disabled={markAll.isPending}
               className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors"
               data-testid="button-mark-all-read"
             >
@@ -162,7 +165,7 @@ export function NotificationBell() {
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {data.notifications.map((notif: any, i: number) => (
+              {(data.notifications as NotifData[]).map((notif, i) => (
                 <motion.div
                   key={notif.id}
                   initial={{ opacity: 0, y: -4 }}
@@ -185,7 +188,7 @@ export function NotificationBell() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-foreground leading-snug">{notif.message}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        {notif.room && (
+                        {notif.room && notif.room.id > 0 && (
                           <Link
                             href={`/rooms/${notif.room.id}`}
                             onClick={() => {

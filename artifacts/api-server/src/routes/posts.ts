@@ -15,13 +15,23 @@ import { broadcastToRoom, broadcastToUser } from "../lib/websocket";
 
 const router = Router();
 
-async function enrichPost(post: typeof postsTable.$inferSelect) {
-  let author = undefined;
-  if (post.authorId) {
-    const [u] = await db.select().from(usersTable).where(eq(usersTable.id, post.authorId));
-    author = u;
-  }
-  return { ...post, author };
+type PostWithAuthor = typeof postsTable.$inferSelect & {
+  author: typeof usersTable.$inferSelect | null;
+};
+
+async function getPostsWithAuthors(posts: (typeof postsTable.$inferSelect)[]): Promise<PostWithAuthor[]> {
+  if (posts.length === 0) return [];
+
+  const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))] as number[];
+  if (authorIds.length === 0) return posts.map((p) => ({ ...p, author: null }));
+
+  const authors = await db
+    .select()
+    .from(usersTable)
+    .where(sql`${usersTable.id} IN (${sql.join(authorIds.map((id) => sql`${id}`), sql`, `)})`);
+
+  const authorMap = new Map(authors.map((a) => [a.id, a]));
+  return posts.map((p) => ({ ...p, author: p.authorId ? (authorMap.get(p.authorId) ?? null) : null }));
 }
 
 router.get("/posts", async (req, res) => {
@@ -38,7 +48,7 @@ router.get("/posts", async (req, res) => {
     .limit(limit)
     .offset(offset);
 
-  const enriched = await Promise.all(posts.map(enrichPost));
+  const enriched = await getPostsWithAuthors(posts);
   return res.json(enriched);
 });
 
@@ -48,6 +58,11 @@ router.post("/rooms/:id/posts", async (req, res) => {
 
   const body = CreatePostBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Invalid request body" });
+
+  // Only authenticated users can post
+  if (body.data.authorId && body.data.authorId !== req.session.userId) {
+    return res.status(403).json({ error: "You can only post as yourself" });
+  }
 
   const [post] = await db
     .insert(postsTable)
@@ -66,7 +81,7 @@ router.post("/rooms/:id/posts", async (req, res) => {
       .where(eq(usersTable.id, body.data.authorId));
   }
 
-  const enriched = await enrichPost(post);
+  const [enriched] = await getPostsWithAuthors([post]);
   broadcastToRoom(params.data.id, { type: "new_post", post: enriched });
 
   // Create notifications
@@ -139,6 +154,17 @@ router.patch("/posts/:id", async (req, res) => {
   const params = UpdatePostParams.safeParse(req.params);
   if (!params.success) return res.status(400).json({ error: "Invalid id" });
 
+  const [existing] = await db
+    .select({ id: postsTable.id, authorId: postsTable.authorId })
+    .from(postsTable)
+    .where(eq(postsTable.id, params.data.id));
+  if (!existing) return res.status(404).json({ error: "Post not found" });
+
+  // Only the author can update their post
+  if (req.session.userId && existing.authorId && req.session.userId !== existing.authorId) {
+    return res.status(403).json({ error: "You can only update your own posts" });
+  }
+
   const body = UpdatePostBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "Invalid request body" });
 
@@ -147,9 +173,8 @@ router.patch("/posts/:id", async (req, res) => {
     .set({ ...body.data, updatedAt: new Date() })
     .where(eq(postsTable.id, params.data.id))
     .returning();
-  if (!post) return res.status(404).json({ error: "Post not found" });
 
-  const enriched = await enrichPost(post);
+  const [enriched] = await getPostsWithAuthors([post]);
   broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
   return res.json(enriched);
 });
@@ -158,6 +183,17 @@ router.delete("/posts/:id", async (req, res) => {
    const params = DeletePostParams.safeParse(req.params);
    if (!params.success) {
      return res.status(400).json({ error: "Invalid id" });
+   }
+
+   const [existing] = await db
+     .select({ id: postsTable.id, authorId: postsTable.authorId })
+     .from(postsTable)
+     .where(eq(postsTable.id, params.data.id));
+   if (!existing) return res.status(404).json({ error: "Post not found" });
+
+   // Only the author can delete their post
+   if (req.session.userId && existing.authorId && req.session.userId !== existing.authorId) {
+     return res.status(403).json({ error: "You can only delete your own posts" });
    }
 
    const [deleted] = await db.delete(postsTable).where(eq(postsTable.id, params.data.id)).returning();
@@ -180,7 +216,7 @@ router.post("/posts/:id/upvote", async (req, res) => {
      return res.status(404).json({ error: "Post not found" });
    }
 
-   const enriched = await enrichPost(post);
+   const [enriched] = await getPostsWithAuthors([post]);
    broadcastToRoom(post.roomId, { type: "update_post", post: enriched });
    return res.json(enriched);
 });

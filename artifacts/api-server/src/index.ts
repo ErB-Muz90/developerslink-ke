@@ -19,7 +19,7 @@ if (process.env.VERCEL !== "1") {
 
   const server = createServer(app);
   // Initialize WebSocket server only in non-Vercel environments
-  const { initWebSocketServer } = require("./lib/websocket");
+  const { initWebSocketServer } = await import("./lib/websocket");
   initWebSocketServer(server);
 
   server.listen(port, () => {

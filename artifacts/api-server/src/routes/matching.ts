@@ -16,7 +16,8 @@ function computeMatchScore(
   const reasons: string[] = [];
   let score = 0;
 
-  const userSkillNames = (user.skills as any[]).map((s: any) => s.name.toLowerCase());
+  const userSkills = user.skills as { name: string; category: string; proficiency: string }[];
+  const userSkillNames = userSkills.map((s) => s.name.toLowerCase());
 
   const skillMatches = skills.filter((s) =>
     userSkillNames.some((us) => us.includes(s.toLowerCase()) || s.toLowerCase().includes(us))
@@ -83,7 +84,8 @@ router.get("/match/suggestions/:userId", async (req, res) => {
   const [targetUser] = await db.select().from(usersTable).where(eq(usersTable.id, params.data.userId));
   if (!targetUser) return res.status(404).json({ error: "User not found" });
 
-  const targetSkills = (targetUser.skills as any[]).map((s: any) => s.name);
+  const targetUserSkills = targetUser.skills as { name: string; category: string; proficiency: string }[];
+  const targetSkills = targetUserSkills.map((s) => s.name);
   const allUsers = await db.select().from(usersTable);
 
   const results = allUsers

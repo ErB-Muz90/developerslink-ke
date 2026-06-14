@@ -349,6 +349,11 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
+  // Attach CSRF protection header on every API request
+  if (!headers.has("x-requested-with")) {
+    headers.set("x-requested-with", "devlink-ke");
+  }
+
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
   if (_authTokenGetter && !headers.has("authorization")) {
