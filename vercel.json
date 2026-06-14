@@ -3,7 +3,7 @@
     {
       "src": "artifacts/devlink-ke/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { "distDir": "dist/public" }
     },
     {
       "src": "artifacts/api-server/package.json",
