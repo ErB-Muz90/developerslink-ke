@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "artifacts/devlink-ke/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
+    {
+      "src": "artifacts/api-server/package.json",
+      "use": "@vercel/node",
+      "config": { "distDir": "dist" }
+    }
+  ]
+}
