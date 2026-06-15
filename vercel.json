@@ -2,6 +2,7 @@
   "env": {
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
   },
+  "outputDirectory": "artifacts/devlink-ke/dist/public",
   "builds": [
     {
       "src": "artifacts/devlink-ke/package.json",
