@@ -1,5 +1,7 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "env": {
+    "ENABLE_EXPERIMENTAL_COREPACK": "1"
+  },
   "builds": [
     {
       "src": "artifacts/devlink-ke/package.json",
