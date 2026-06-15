@@ -5,5 +5,11 @@
   "buildCommand": "pnpm --filter @workspace/devlink-ke run build",
   "outputDirectory": "artifacts/devlink-ke/dist/public",
   "installCommand": "pnpm install",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://developerslink-ke-api-server-tawny.vercel.app/api/:path*"
+    }
+  ]
 }
