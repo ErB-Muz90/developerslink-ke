@@ -2,19 +2,25 @@
   "env": {
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
   },
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @workspace/devlink-ke run build && pnpm --filter @workspace/api-server run build",
-  "outputDirectory": "artifacts/devlink-ke/dist/public",
-  "framework": null,
-  "functions": {
-    "artifacts/api-server/dist/index.mjs": {
-      "runtime": "nodejs24.x"
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/artifacts/api-server/dist/index.mjs"
+      "src": "artifacts/devlink-ke/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/public",
+        "buildCommand": "cd ../.. && pnpm install && pnpm --filter @workspace/devlink-ke run build"
+      }
+    },
+    {
+      "src": "artifacts/api-server/src/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["artifacts/api-server/src/**", "lib/**"]
+      }
     }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "artifacts/api-server/src/index.ts" },
+    { "src": "/(.*)", "dest": "artifacts/devlink-ke/package.json" }
   ]
 }
