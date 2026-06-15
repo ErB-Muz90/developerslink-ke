@@ -2,14 +2,19 @@
   "env": {
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
   },
-  "buildCommand": "pnpm --filter @workspace/devlink-ke run build",
-  "outputDirectory": "artifacts/devlink-ke/dist/public",
   "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @workspace/devlink-ke run build && pnpm --filter @workspace/api-server run build",
+  "outputDirectory": "artifacts/devlink-ke/dist/public",
   "framework": null,
+  "functions": {
+    "artifacts/api-server/dist/index.mjs": {
+      "runtime": "nodejs24.x"
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://developerslink-ke-api-server-tawny.vercel.app/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "/artifacts/api-server/dist/index.mjs"
     }
   ]
 }
