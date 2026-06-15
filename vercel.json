@@ -2,17 +2,8 @@
   "env": {
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
   },
+  "buildCommand": "pnpm --filter @workspace/devlink-ke run build",
   "outputDirectory": "artifacts/devlink-ke/dist/public",
-  "builds": [
-    {
-      "src": "artifacts/devlink-ke/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist/public" }
-    },
-    {
-      "src": "artifacts/api-server/package.json",
-      "use": "@vercel/node",
-      "config": { "distDir": "dist" }
-    }
-  ]
+  "installCommand": "pnpm install",
+  "framework": null
 }
