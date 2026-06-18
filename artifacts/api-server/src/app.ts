@@ -1,10 +1,13 @@
 import express, { type Express } from "express";
+import path from "path";
 import cors from "cors";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { csrfProtection } from "./lib/csrf-middleware";
+import { pool } from "@workspace/db";
 
 const app: Express = express();
 
@@ -34,6 +37,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -50,6 +54,10 @@ app.use(
     secret: process.env["SESSION_SECRET"] || "devlink-ke-dev-secret",
     resave: false,
     saveUninitialized: false,
+    store: new (pgSession(session))({
+      pool,
+      createTableIfMissing: true,
+    }),
     cookie: {
       httpOnly: true,
       secure: isProduction,
