@@ -1,4 +1,5 @@
 import { Router } from "express";
+import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { db } from "@workspace/db";
@@ -16,9 +17,16 @@ import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
 
+// Persistent uploads directory — configurable via env var, defaults to ./uploads in the project root
+const UPLOADS_DIR = process.env["UPLOADS_DIR"] ?? path.join(process.cwd(), "uploads");
+const AVATAR_DIR = path.join(UPLOADS_DIR, "avatars");
+
+// Ensure the avatars directory exists
+fs.mkdirSync(AVATAR_DIR, { recursive: true });
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads/avatars"));
+    cb(null, AVATAR_DIR);
   },
   filename: (_req, file, cb) => {
     const ext = file.mimetype.split("/")[1] || "png";

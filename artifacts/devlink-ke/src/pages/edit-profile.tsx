@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
-import { Edit, Code2, Trash2, Loader2, Save, Plus, Camera, Sparkles, Upload } from "lucide-react";
+import { Edit, Code2, Trash2, Loader2, Save, Plus, Sparkles, Upload } from "lucide-react";
 
 const KENYA_COUNTIES: Record<string, string[]> = {
   "Nairobi": ["Nairobi"],

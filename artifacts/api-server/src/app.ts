@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import fs from "fs";
 import path from "path";
 import cors from "cors";
 import session from "express-session";
@@ -10,6 +11,10 @@ import { csrfProtection } from "./lib/csrf-middleware";
 import { pool } from "@workspace/db";
 
 const app: Express = express();
+
+// Persistent uploads directory — configurable via env var, defaults to ./uploads in the project root
+const UPLOADS_DIR = process.env["UPLOADS_DIR"] ?? path.join(process.cwd(), "uploads");
+fs.mkdirSync(path.join(UPLOADS_DIR, "avatars"), { recursive: true });
 
 app.use(
   pinoHttp({
@@ -37,7 +42,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 const isProduction = process.env.NODE_ENV === "production";
 
