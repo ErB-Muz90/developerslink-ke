@@ -1,6 +1,4 @@
 import { Router } from "express";
-import path from "path";
-import multer from "multer";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, ilike, sql } from "drizzle-orm";
@@ -12,31 +10,8 @@ import {
   UpdateUserBody,
   GetTopBuildersQueryParams,
 } from "@workspace/api-zod";
-import { requireAuth } from "../lib/auth-middleware";
 
 const router = Router();
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, path.join(__dirname, "../../uploads/avatars"));
-  },
-  filename: (_req, file, cb) => {
-    const ext = file.mimetype.split("/")[1] || "png";
-    cb(null, `avatar-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed"));
-    }
-  },
-});
 
 function safeUser(user: typeof usersTable.$inferSelect) {
   const { passwordHash: _, ...safe } = user;
@@ -165,55 +140,6 @@ router.patch("/users/:id", async (req, res) => {
     .returning();
   if (!user) return res.status(404).json({ error: "User not found" });
   return res.json(safeUser(user));
-});
-
-router.post("/users/:id/avatar", requireAuth, upload.single("avatar"), async (req, res) => {
-  const params = GetUserParams.safeParse(req.params);
-  if (!params.success) return res.status(400).json({ error: "Invalid id" });
-
-  if (req.session.userId !== params.data.id) {
-    return res.status(403).json({ error: "You can only update your own avatar" });
-  }
-
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-
-  const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-
-  const [user] = await db
-    .update(usersTable)
-    .set({ avatarUrl })
-    .where(eq(usersTable.id, params.data.id))
-    .returning();
-
-  return res.json(safeUser(user));
-});
-
-router.post("/users/:id/avatar/generate", requireAuth, async (req, res) => {
-  const params = GetUserParams.safeParse(req.params);
-  if (!params.success) return res.status(400).json({ error: "Invalid id" });
-
-  if (req.session.userId !== params.data.id) {
-    return res.status(403).json({ error: "You can only update your own avatar" });
-  }
-
-  const [user] = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, params.data.id));
-
-  if (!user) return res.status(404).json({ error: "User not found" });
-
-  const seed = encodeURIComponent(user.username);
-  const style = (req.body?.style as string) || "avataaars";
-  const avatarUrl = `https://api.dicebear.com/9.x/${style}/svg?seed=${seed}`;
-
-  const [updated] = await db
-    .update(usersTable)
-    .set({ avatarUrl })
-    .where(eq(usersTable.id, params.data.id))
-    .returning();
-
-  return res.json(safeUser(updated));
 });
 
 export default router;

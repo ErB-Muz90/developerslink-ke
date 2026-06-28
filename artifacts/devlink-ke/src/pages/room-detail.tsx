@@ -1,18 +1,17 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   useGetRoom,
   useGetRoomPosts,
   useCreatePost,
   useJoinRoom,
   useUpvotePost,
-  useDeleteRoom,
   getGetRoomPostsQueryKey,
 } from "@workspace/api-client-react";
-import { useParams, Link, useLocation } from "wouter";
+import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users,
@@ -25,7 +24,6 @@ import {
   Wifi,
   WifiOff,
   ArrowLeft,
-  Trash2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,15 +42,14 @@ export default function RoomDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { currentUser, isLoading: userLoading } = useCurrentUser();
+  const { currentUser } = useCurrentUser();
 
   const [content, setContent] = useState("");
   const [summary, setSummary] = useState<any>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [newPostIds, setNewPostIds] = useState<Set<number>>(new Set());
-  const [joined, setJoined] = useState(false);
 
-  const { isConnected, hasConnectedBefore } = useRoomSocket(joined ? roomId : 0, {
+  const { isConnected } = useRoomSocket(roomId, {
     userId: currentUser?.id,
   });
 
@@ -64,66 +61,15 @@ export default function RoomDetail() {
     { query: { enabled: !!roomId, queryKey: getGetRoomPostsQueryKey({ roomId }) } }
   );
 
-  const { data: membership } = useQuery({
-    queryKey: ["/api/rooms", roomId, "membership"],
-    queryFn: async () => {
-      const res = await fetch(`/api/rooms/${roomId}/membership`, { credentials: "include" });
-      if (!res.ok) return { isMember: false };
-      return res.json();
-    },
-    enabled: !!currentUser && !!roomId,
-  });
-
-  useEffect(() => {
-    if (membership?.isMember && !joined) {
-      setJoined(true);
-    }
-  }, [membership, joined]);
-
   const createPost = useCreatePost({
     mutation: {
-      onMutate: async (variables) => {
-        await queryClient.cancelQueries({ queryKey: getGetRoomPostsQueryKey({ roomId }) });
-        const previous = queryClient.getQueryData(getGetRoomPostsQueryKey({ roomId }));
-        const optimisticPost = {
-          id: -Date.now(),
-          content: variables.data.content,
-          roomId,
-          authorId: currentUser?.id ?? null,
-          author: currentUser ? {
-            id: currentUser.id,
-            displayName: currentUser.displayName,
-            username: currentUser.username,
-            level: currentUser.level,
-            avatarUrl: currentUser.avatarUrl ?? null,
-          } : null,
-          upvotes: 0,
-          isPinned: false,
-          parentPostId: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        queryClient.setQueryData(getGetRoomPostsQueryKey({ roomId }), (old: any[] | undefined) => {
-          if (!old) return [optimisticPost];
-          return [optimisticPost, ...old];
-        });
-        return { previous };
-      },
-      onSuccess: (post, _variables, context) => {
+      onSuccess: (post) => {
         setContent("");
         setNewPostIds((prev) => new Set(prev).add(post.id));
-        queryClient.setQueryData(getGetRoomPostsQueryKey({ roomId }), (old: any[] | undefined) => {
-          if (!old) return [post];
-          const filtered = old.filter((p) => p.id < 0);
-          if (filtered.some((p) => p.id === post.id)) return old;
-          return [post, ...filtered];
-        });
+        queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
       },
-      onError: (_err, _variables, context) => {
-        if (context?.previous) {
-          queryClient.setQueryData(getGetRoomPostsQueryKey({ roomId }), context.previous);
-        }
+      onError: () => {
         toast({ title: "Error", description: "Failed to post message", variant: "destructive" });
       },
     },
@@ -132,80 +78,11 @@ export default function RoomDetail() {
   const joinRoom = useJoinRoom({
     mutation: {
       onSuccess: () => {
-        setJoined(true);
-        queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId, "membership"] });
-        toast({ title: "Connected", description: "You are now connected to this room." });
+        toast({ title: "Joined Room", description: "You are now a member of this room." });
+        queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
       },
     },
   });
-
-  const [, navigate] = useLocation();
-
-  const deleteRoom = useDeleteRoom({
-    mutation: {
-      onSuccess: () => {
-        toast({ title: "Room deleted", description: "The room has been removed." });
-        queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/rooms/live-activity"] });
-        navigate("/rooms");
-      },
-      onError: (error) => {
-        const message = error instanceof Error ? error.message : "Failed to delete";
-        toast({ title: "Error", description: message, variant: "destructive" });
-      },
-    },
-  });
-
-  const handleDeleteRoom = () => {
-    if (!confirm("Delete this room? This cannot be undone.")) return;
-    deleteRoom.mutate({ id: roomId });
-  };
-
-  const [newLinkLabel, setNewLinkLabel] = useState("");
-  const [newLinkUrl, setNewLinkUrl] = useState("");
-  const [showLinkForm, setShowLinkForm] = useState(false);
-
-  const isOwner = currentUser && room?.createdByUserId === currentUser.id;
-
-  const handleAddLink = async () => {
-    if (!newLinkLabel.trim() || !newLinkUrl.trim()) return;
-    const currentLinks = (room as any)?.links ?? [];
-    const updatedLinks = [...currentLinks, { label: newLinkLabel.trim(), url: newLinkUrl.trim() }];
-    try {
-      const res = await fetch(`/api/rooms/${roomId}/links`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-requested-with": "devlink-ke" },
-        credentials: "include",
-        body: JSON.stringify({ links: updatedLinks }),
-      });
-      if (!res.ok) throw new Error("Failed to add link");
-      await queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
-      setNewLinkLabel("");
-      setNewLinkUrl("");
-      setShowLinkForm(false);
-      toast({ title: "Link added" });
-    } catch {
-      toast({ title: "Error", description: "Failed to add link", variant: "destructive" });
-    }
-  };
-
-  const handleRemoveLink = async (index: number) => {
-    const currentLinks = (room as any)?.links ?? [];
-    const updatedLinks = currentLinks.filter((_: any, i: number) => i !== index);
-    try {
-      const res = await fetch(`/api/rooms/${roomId}/links`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-requested-with": "devlink-ke" },
-        credentials: "include",
-        body: JSON.stringify({ links: updatedLinks }),
-      });
-      if (!res.ok) throw new Error("Failed to remove link");
-      await queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
-      toast({ title: "Link removed" });
-    } catch {
-      toast({ title: "Error", description: "Failed to remove link", variant: "destructive" });
-    }
-  };
 
   const upvotePost = useUpvotePost();
 
@@ -299,28 +176,26 @@ export default function RoomDetail() {
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">{room.description}</p>
               </div>
-              {joined && (
-                <div
-                  className={`flex items-center gap-1.5 text-[10px] font-mono flex-shrink-0 px-2 py-1 border ${
-                    isConnected
-                      ? "text-primary border-primary/30 bg-primary/5"
-                      : "text-muted-foreground border-border/40"
-                  }`}
-                >
-                  {isConnected ? (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      <Wifi className="h-3 w-3" />
-                      LIVE
-                    </>
-                  ) : (
-                    <>
-                      <WifiOff className="h-3 w-3" />
-                      {hasConnectedBefore ? "RECONNECTING" : "CONNECTING"}
-                    </>
-                  )}
-                </div>
-              )}
+              <div
+                className={`flex items-center gap-1.5 text-[10px] font-mono flex-shrink-0 px-2 py-1 border ${
+                  isConnected
+                    ? "text-primary border-primary/30 bg-primary/5"
+                    : "text-muted-foreground border-border/40"
+                }`}
+              >
+                {isConnected ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <Wifi className="h-3 w-3" />
+                    LIVE
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3" />
+                    CONNECTING
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -377,29 +252,8 @@ export default function RoomDetail() {
             )}
           </AnimatePresence>
 
-          {/* Join prompt */}
-          {!joined && (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-border bg-muted/5 mb-5 min-h-[300px]">
-              <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-              <p className="font-mono font-bold text-lg text-foreground">JOIN_THIS_ROOM</p>
-              {!currentUser ? (
-                <p className="text-sm text-muted-foreground mt-1 mb-6">Log in to join and participate in this room.</p>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-1 mb-6">Click "JOIN_ROOM" to connect and participate.</p>
-              )}
-              <Button
-                className="rounded-none font-mono bg-foreground text-background hover:bg-foreground/90"
-                onClick={() => currentUser && joinRoom.mutate({ id: roomId })}
-                disabled={!currentUser || joinRoom.isPending}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                {!currentUser ? "LOGIN_TO_JOIN" : joinRoom.isPending ? "JOINING..." : "JOIN_ROOM"}
-              </Button>
-            </div>
-          )}
-
           {/* Messages */}
-          {joined && <div className="flex-1 space-y-3 mb-5">
+          <div className="flex-1 space-y-3 mb-5">
             {postsLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 w-full" />)}
@@ -491,10 +345,10 @@ export default function RoomDetail() {
               </AnimatePresence>
             )}
             <div ref={messagesEndRef} />
-          </div>}
+          </div>
 
           {/* Composer */}
-          {joined && <div className="mt-auto border border-border bg-card focus-within:border-primary/60 transition-colors">
+          <div className="mt-auto border border-border bg-card focus-within:border-primary/60 transition-colors">
             {!currentUser && (
               <div className="px-3 py-2 border-b border-border/30 bg-muted/20 flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground font-mono">
@@ -533,29 +387,21 @@ export default function RoomDetail() {
                 {createPost.isPending ? "SENDING..." : <><Send className="w-3 h-3 mr-2" /> SEND</>}
               </Button>
             </div>
-          </div>}
+          </div>
         </div>
 
         {/* Sidebar */}
         <div className="lg:col-span-1 space-y-4">
           <div className="p-4 border border-border bg-card/50 space-y-2">
-            {!joined ? (
-              <Button
-                className="w-full rounded-none font-mono bg-foreground text-background hover:bg-foreground/90 text-xs"
-                onClick={() => currentUser && joinRoom.mutate({ id: roomId })}
-                disabled={!currentUser || joinRoom.isPending}
-                data-testid="button-join-room"
-              >
-                <Users className="w-3.5 h-3.5 mr-2" />
-                {!currentUser ? "LOGIN_TO_JOIN" : joinRoom.isPending ? "JOINING..." : "JOIN_ROOM"}
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-2 border border-primary/30 bg-primary/5">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-xs font-mono text-primary font-semibold flex-1">CONNECTED</span>
-                <Wifi className="h-3.5 w-3.5 text-primary" />
-              </div>
-            )}
+            <Button
+              className="w-full rounded-none font-mono bg-foreground text-background hover:bg-foreground/90 text-xs"
+              onClick={() => joinRoom.mutate({ id: roomId })}
+              disabled={joinRoom.isPending}
+              data-testid="button-join-room"
+            >
+              <Users className="w-3.5 h-3.5 mr-2" />
+              {joinRoom.isPending ? "JOINING..." : "JOIN_ROOM"}
+            </Button>
             <Button
               variant="outline"
               className="w-full rounded-none font-mono border-secondary/40 text-secondary hover:bg-secondary/10 text-xs"
@@ -568,17 +414,6 @@ export default function RoomDetail() {
             </Button>
             {(posts?.length ?? 0) < 3 && (
               <p className="text-[10px] text-center text-muted-foreground font-mono">Requires 3+ messages</p>
-            )}
-            {currentUser && room.createdByUserId === currentUser.id && (
-              <Button
-                variant="ghost"
-                className="w-full rounded-none font-mono text-xs text-destructive border border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                onClick={handleDeleteRoom}
-                disabled={deleteRoom.isPending}
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                {deleteRoom.isPending ? "DELETING..." : "DELETE_ROOM"}
-              </Button>
             )}
           </div>
 
@@ -626,75 +461,6 @@ export default function RoomDetail() {
               </div>
             </div>
           </div>
-
-          {(room as any).links?.length > 0 || (isOwner && room.type === "project") ? (
-            <div className="p-4 border border-border bg-card">
-              <h3 className="font-mono font-bold text-xs text-foreground mb-4 border-b border-border/50 pb-2 tracking-widest">
-                LINKS
-              </h3>
-              <div className="space-y-2">
-                {(room as any).links?.map((link: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 group">
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-xs font-mono text-primary hover:underline truncate"
-                    >
-                      {link.label}
-                    </a>
-                    {isOwner && (
-                      <button
-                        onClick={() => handleRemoveLink(i)}
-                        className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                      >
-                        &times;
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {isOwner && room.type === "project" && !showLinkForm && (
-                  <button
-                    onClick={() => setShowLinkForm(true)}
-                    className="text-xs font-mono text-primary hover:text-primary/80 mt-2 flex items-center gap-1"
-                  >
-                    + ADD_LINK
-                  </button>
-                )}
-                {isOwner && showLinkForm && (
-                  <div className="space-y-2 mt-2 pt-2 border-t border-border/50">
-                    <input
-                      value={newLinkLabel}
-                      onChange={(e) => setNewLinkLabel(e.target.value)}
-                      placeholder="Label (e.g. GitHub)"
-                      className="w-full text-xs px-2 py-1 bg-background border border-border font-mono focus:outline-none focus:border-primary"
-                    />
-                    <input
-                      value={newLinkUrl}
-                      onChange={(e) => setNewLinkUrl(e.target.value)}
-                      placeholder="URL (e.g. https://github.com/...)"
-                      className="w-full text-xs px-2 py-1 bg-background border border-border font-mono focus:outline-none focus:border-primary"
-                    />
-                    <div className="flex gap-1">
-                      <button
-                        onClick={handleAddLink}
-                        disabled={!newLinkLabel.trim() || !newLinkUrl.trim()}
-                        className="flex-1 text-xs font-mono py-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        SAVE
-                      </button>
-                      <button
-                        onClick={() => { setShowLinkForm(false); setNewLinkLabel(""); setNewLinkUrl(""); }}
-                        className="text-xs font-mono py-1 px-2 text-muted-foreground hover:text-foreground"
-                      >
-                        CANCEL
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 

@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
 import {
-  Check, X, Clock, ArrowRight, Inbox, Send,
+  Zap, Check, X, Clock, Users, ArrowRight, Inbox, Send,
   ChevronRight, Loader2, MessageSquare,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type CollabRequest = {
   id: number;
@@ -255,7 +255,7 @@ export default function InboxPage() {
   if (!currentUser) return (
     <div className="container mx-auto px-4 py-20 text-center max-w-md">
       <Inbox className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-      <h1 className="font-mono font-black text-xl mb-2">INBOX</h1>
+      <h1 className="font-mono font-black text-xl mb-2">COLLAB_INBOX</h1>
       <p className="text-muted-foreground text-sm mb-6">Sign in to see your collab requests.</p>
       <Link href="/new-profile"><Button className="rounded-none font-mono text-xs bg-primary text-primary-foreground">JOIN_DEVLINK_KE</Button></Link>
     </div>
@@ -265,10 +265,10 @@ export default function InboxPage() {
     <div className="container mx-auto px-4 py-10 md:py-14 max-w-3xl">
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-[10px] font-mono text-primary tracking-widest border border-primary/30 px-2 py-0.5 bg-primary/5">INBOX</span>
+          <span className="text-[10px] font-mono text-primary tracking-widest border border-primary/30 px-2 py-0.5 bg-primary/5">COLLAB_INBOX</span>
         </div>
         <h1 className="text-3xl font-black font-mono tracking-tight text-foreground">
-          Collab_<span className="text-primary">Inbox</span>
+          Hook_<span className="text-primary">Up</span> Requests
         </h1>
         <p className="text-muted-foreground text-sm mt-2">Manage collab requests from other builders in the network.</p>
       </div>

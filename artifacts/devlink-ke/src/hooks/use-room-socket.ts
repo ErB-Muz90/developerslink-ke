@@ -13,15 +13,11 @@ interface UseRoomSocketOptions {
   userId?: number;
 }
 
-const MAX_RECONNECT_ATTEMPTS = 5;
-
 export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}) {
   const { userId } = options;
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectAttempts = useRef(0);
-  const hasConnectedBefore = useRef(false);
   const isMounted = useRef(true);
   const postsKey = getGetRoomPostsQueryKey({ roomId });
 
@@ -35,11 +31,6 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
-
-    ws.onopen = () => {
-      reconnectAttempts.current = 0;
-      hasConnectedBefore.current = true;
-    };
 
     ws.onmessage = (event) => {
       try {
@@ -66,6 +57,7 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
         }
 
         if (msg.type === "new_notification") {
+          // Broadcast globally so any mounted NotificationBell can pick it up
           window.dispatchEvent(
             new CustomEvent("devlink:notification", { detail: msg.notification })
           );
@@ -77,17 +69,13 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
 
     ws.onclose = () => {
       if (!isMounted.current) return;
-      reconnectAttempts.current += 1;
-      if (reconnectAttempts.current > MAX_RECONNECT_ATTEMPTS) return;
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
-      reconnectTimer.current = setTimeout(() => connect(), delay);
+      reconnectTimer.current = setTimeout(() => connect(), 3000);
     };
     ws.onerror = () => ws.close();
   }, [roomId, userId, queryClient, postsKey]);
 
   useEffect(() => {
     isMounted.current = true;
-    reconnectAttempts.current = 0;
     connect();
     return () => {
       isMounted.current = false;
@@ -96,8 +84,5 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
     };
   }, [connect]);
 
-  return {
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
-    hasConnectedBefore: hasConnectedBefore.current,
-  };
+  return { isConnected: wsRef.current?.readyState === WebSocket.OPEN };
 }

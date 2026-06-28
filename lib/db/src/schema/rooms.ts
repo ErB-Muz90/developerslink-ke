@@ -3,18 +3,12 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 
-export interface RoomLink {
-  label: string;
-  url: string;
-}
-
 export const roomsTable = pgTable("rooms", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
   type: text("type").notNull().default("discussion"),
   skills: jsonb("skills").notNull().$type<string[]>().default([]),
-  links: jsonb("links").notNull().$type<RoomLink[]>().default([]),
   memberCount: integer("member_count").notNull().default(0),
   postCount: integer("post_count").notNull().default(0),
   isPinned: boolean("is_pinned").notNull().default(false),

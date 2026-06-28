@@ -6,4 +6,3 @@ export * from "./password-reset-tokens";
 export * from "./email-verification-tokens";
 export * from "./collab-requests";
 export * from "./profile-views";
-export * from "./room-members";

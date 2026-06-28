@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
-import { Edit, Code2, Trash2, Loader2, Save, Plus, Camera, Wand2, RefreshCw } from "lucide-react";
+import { Edit, Code2, Trash2, Loader2, Save, Plus } from "lucide-react";
 
 const KENYA_COUNTIES: Record<string, string[]> = {
   "Nairobi": ["Nairobi"],
@@ -50,12 +50,6 @@ export default function EditProfile() {
   const { currentUser, refetchMe } = useCurrentUser();
   const { toast } = useToast();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarGenerating, setAvatarGenerating] = useState(false);
-  const [avatarStyle, setAvatarStyle] = useState("avataaars");
-
   const [skills, setSkills] = useState<Skill[]>([]);
   const [skillInput, setSkillInput] = useState<{ name: string; category: typeof SKILL_CATEGORIES[number]; proficiency: typeof SKILL_PROFICIENCIES[number] }>({
     name: "", category: "frontend", proficiency: "intermediate",
@@ -87,63 +81,10 @@ export default function EditProfile() {
         githubUrl: (currentUser as any).githubUrl ?? "",
         twitterUrl: (currentUser as any).twitterUrl ?? "",
       });
-      setAvatarUrl(currentUser.avatarUrl ?? null);
       setSkills((currentUser as any).skills ?? []);
       setInitialized(true);
     }
   }, [currentUser, form, initialized]);
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !currentUser) return;
-    setAvatarUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("avatar", file);
-      const res = await fetch(`/api/users/${currentUser.id}/avatar`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-      if (!res.ok) {
-        toast({ title: "Upload failed", description: "Please try a different image.", variant: "destructive" });
-        return;
-      }
-      const user = await res.json();
-      setAvatarUrl(user.avatarUrl);
-      await refetchMe();
-      toast({ title: "Avatar updated" });
-    } catch {
-      toast({ title: "Upload failed", description: "Network error.", variant: "destructive" });
-    } finally {
-      setAvatarUploading(false);
-    }
-  };
-
-  const handleGenerateAvatar = async () => {
-    if (!currentUser) return;
-    setAvatarGenerating(true);
-    try {
-      const res = await fetch(`/api/users/${currentUser.id}/avatar/generate`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ style: avatarStyle }),
-      });
-      if (!res.ok) {
-        toast({ title: "Generation failed", description: "Please try again.", variant: "destructive" });
-        return;
-      }
-      const user = await res.json();
-      setAvatarUrl(user.avatarUrl);
-      await refetchMe();
-      toast({ title: "Avatar generated!" });
-    } catch {
-      toast({ title: "Generation failed", description: "Network error.", variant: "destructive" });
-    } finally {
-      setAvatarGenerating(false);
-    }
-  };
 
   const addSkill = () => {
     if (!skillInput.name.trim()) return;
@@ -160,12 +101,12 @@ export default function EditProfile() {
     try {
       const payload = {
         displayName: data.displayName,
-        bio: data.bio || undefined,
-        location: data.location || undefined,
+        bio: data.bio || null,
+        location: data.location || null,
         level: data.level,
-        lookingFor: data.lookingFor || undefined,
-        githubUrl: data.githubUrl || undefined,
-        twitterUrl: data.twitterUrl || undefined,
+        lookingFor: data.lookingFor || null,
+        githubUrl: data.githubUrl || null,
+        twitterUrl: data.twitterUrl || null,
         skills,
       };
       const res = await fetch(`/api/users/${currentUser.id}`, {
@@ -211,79 +152,6 @@ export default function EditProfile() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-          {/* Avatar */}
-          <section>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-px flex-1 bg-border/40" />
-              <span className="text-[10px] font-mono text-primary tracking-widest">AVATAR</span>
-              <div className="h-px flex-1 bg-border/40" />
-            </div>
-            <div className="p-5 border border-border bg-card/50">
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="w-24 h-24 bg-muted border-2 border-border overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl font-mono font-black text-muted-foreground/50 uppercase">
-                      {currentUser?.displayName?.substring(0, 2) ?? "?"}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 flex-1">
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-none font-mono text-xs"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={avatarUploading}
-                    >
-                      {avatarUploading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Camera className="h-3 w-3 mr-1" />}
-                      {avatarUploading ? "UPLOADING..." : "UPLOAD"}
-                    </Button>
-                    <div className="flex gap-1">
-                      <Select value={avatarStyle} onValueChange={setAvatarStyle}>
-                        <SelectTrigger className="rounded-none font-mono text-xs h-8 w-[120px] border-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="avataaars" className="font-mono text-xs">Avataaars</SelectItem>
-                          <SelectItem value="bottts" className="font-mono text-xs">Bottts</SelectItem>
-                          <SelectItem value="initials" className="font-mono text-xs">Initials</SelectItem>
-                          <SelectItem value="identicon" className="font-mono text-xs">Identicon</SelectItem>
-                          <SelectItem value="lorelei" className="font-mono text-xs">Lorelei</SelectItem>
-                          <SelectItem value="thumbs" className="font-mono text-xs">Thumbs</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="rounded-none font-mono text-xs"
-                        onClick={handleGenerateAvatar}
-                        disabled={avatarGenerating}
-                      >
-                        {avatarGenerating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Wand2 className="h-3 w-3 mr-1" />}
-                        {avatarGenerating ? "..." : "GENERATE"}
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-[10px] font-mono text-muted-foreground">
-                    Upload a photo or generate a unique avatar. Max 5MB.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
           {/* Identity */}
           <section>
             <div className="flex items-center gap-3 mb-4">
@@ -321,14 +189,14 @@ export default function EditProfile() {
                 <FormField control={form.control} name="location" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-mono tracking-wider text-muted-foreground">COUNTY</FormLabel>
-                    <Select value={field.value || "__no_county"} onValueChange={(v) => field.onChange(v === "__no_county" ? "" : v)}>
+                    <Select value={field.value || ""} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger className="rounded-none border-border bg-background font-mono focus:ring-primary">
                           <SelectValue placeholder="Select county…" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-[260px]">
-                        <SelectItem value="__no_county">No county set</SelectItem>
+                        <SelectItem value="">No county set</SelectItem>
                         {Object.entries(KENYA_COUNTIES).map(([region, counties]) => (
                           <SelectGroup key={region}>
                             <SelectLabel className="text-[10px] font-mono text-primary tracking-wider">{region.toUpperCase()}</SelectLabel>
