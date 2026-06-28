@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -20,6 +21,8 @@ import NotificationsPage from "@/pages/notifications";
 import EditProfile from "@/pages/edit-profile";
 import { UserProvider } from "@/contexts/user-context";
 import { useOfflineQueueSync } from "@/hooks/use-offline-queue";
+import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/contexts/user-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -54,6 +57,36 @@ function Router() {
 
 function AppInner() {
   useOfflineQueueSync();
+  const { refetchMe } = useCurrentUser();
+  const { toast } = useToast();
+
+  // Handle OAuth callback redirects
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const googleAuth = params.get("google_auth");
+    const githubAuth = params.get("github_auth");
+
+    if (googleAuth === "success") {
+      toast({ title: "Welcome!", description: "Signed in with Google successfully." });
+      refetchMe();
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (googleAuth === "error") {
+      const reason = params.get("reason") ?? "unknown";
+      toast({ title: "Google sign-in failed", description: reason.replace(/_/g, " "), variant: "destructive" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    if (githubAuth === "success") {
+      toast({ title: "Welcome!", description: "Signed in with GitHub successfully." });
+      refetchMe();
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (githubAuth === "error") {
+      const reason = params.get("reason") ?? "unknown";
+      toast({ title: "GitHub sign-in failed", description: reason.replace(/_/g, " "), variant: "destructive" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
   return (
     <TooltipProvider>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>

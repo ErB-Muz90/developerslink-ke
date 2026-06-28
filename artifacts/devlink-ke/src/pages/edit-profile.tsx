@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentUser } from "@/contexts/user-context";
-import { Edit, Code2, Trash2, Loader2, Save, Plus } from "lucide-react";
+import { Edit, Code2, Trash2, Loader2, Save, Plus, Camera, Sparkles, Upload } from "lucide-react";
 
 const KENYA_COUNTIES: Record<string, string[]> = {
   "Nairobi": ["Nairobi"],
@@ -56,6 +57,9 @@ export default function EditProfile() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarGenerating, setAvatarGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(editSchema),
@@ -136,6 +140,55 @@ export default function EditProfile() {
     </div>
   );
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch(`/api/users/${currentUser.id}/avatar`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!res.ok) {
+        toast({ title: "Upload failed", variant: "destructive" });
+        return;
+      }
+      await refetchMe();
+      toast({ title: "Avatar updated" });
+    } catch {
+      toast({ title: "Upload error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleGenerateAvatar = async () => {
+    if (!currentUser) return;
+    setAvatarGenerating(true);
+    try {
+      const res = await fetch(`/api/users/${currentUser.id}/avatar/generate`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ style: "avataaars" }),
+      });
+      if (!res.ok) {
+        toast({ title: "Generation failed", variant: "destructive" });
+        return;
+      }
+      await refetchMe();
+      toast({ title: "Avatar generated!" });
+    } catch {
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+    } finally {
+      setAvatarGenerating(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-10 md:py-14 max-w-2xl">
       <div className="mb-8">
@@ -151,6 +204,69 @@ export default function EditProfile() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
+          {/* Avatar */}
+          <section>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-px flex-1 bg-border/40" />
+              <span className="text-[10px] font-mono text-primary tracking-widest">AVATAR</span>
+              <div className="h-px flex-1 bg-border/40" />
+            </div>
+            <div className="p-5 border border-border bg-card/50 flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-2 border-border">
+                  {currentUser.avatarUrl ? (
+                    <AvatarImage src={currentUser.avatarUrl} alt="Profile" />
+                  ) : null}
+                  <AvatarFallback className="text-lg font-mono font-bold bg-primary/10 text-primary">
+                    {currentUser.displayName.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {avatarUploading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={avatarUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-none font-mono text-xs border-border/60 h-9"
+                >
+                  {avatarUploading ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  UPLOAD PHOTO
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={avatarGenerating}
+                  onClick={handleGenerateAvatar}
+                  className="rounded-none font-mono text-xs border-border/60 h-9"
+                >
+                  {avatarGenerating ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  GENERATE
+                </Button>
+              </div>
+            </div>
+          </section>
 
           {/* Identity */}
           <section>

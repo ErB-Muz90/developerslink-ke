@@ -218,7 +218,9 @@ vi.mock("@workspace/db", () => {
     execute: () => thenable({ rows: [] }),
   };
 
-  return { db, usersTable, eq, sql };
+  const pool = { query: () => Promise.resolve({ rows: [] }) };
+
+  return { db, usersTable, eq, sql, pool };
 });
 
 // Now import app — @workspace/db is already mocked

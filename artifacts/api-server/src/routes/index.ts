@@ -11,10 +11,14 @@ import passwordResetRouter from "./password-reset";
 import emailVerificationRouter from "./email-verification";
 import collabRequestsRouter from "./collab-requests";
 import profileViewsRouter from "./profile-views";
+import googleOAuthRouter from "./google-oauth";
+import githubOAuthRouter from "./github-oauth";
 
 const router: IRouter = Router();
 
 router.use(authRouter);
+router.use(googleOAuthRouter);
+router.use(githubOAuthRouter);
 router.use(passwordResetRouter);
 router.use(emailVerificationRouter);
 router.use(healthRouter);

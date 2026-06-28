@@ -391,7 +391,9 @@ vi.mock("@workspace/db", () => {
     execute: () => thenable({ rows: [] }),
   };
 
-  return { db, usersTable, roomsTable, postsTable, notificationsTable, collabRequestsTable, profileViewsTable };
+  const pool = { query: () => Promise.resolve({ rows: [] }) };
+
+  return { db, pool, usersTable, roomsTable, postsTable, notificationsTable, collabRequestsTable, profileViewsTable };
 });
 
 // ── Import app (mocks already applied) ──────────────────────────────────
