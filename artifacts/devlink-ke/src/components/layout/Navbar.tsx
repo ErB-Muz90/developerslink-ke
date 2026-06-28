@@ -64,10 +64,14 @@ export function Navbar() {
           className="flex items-center gap-2 h-9 px-2 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
           data-testid="button-user-menu"
         >
-          <div className="w-6 h-6 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0">
-            <span className="text-[9px] font-mono font-bold text-primary">
-              {currentUser!.displayName.substring(0, 2).toUpperCase()}
-            </span>
+          <div className="w-6 h-6 bg-primary/10 border border-primary/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {currentUser!.avatarUrl ? (
+              <img src={currentUser!.avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[9px] font-mono font-bold text-primary">
+                {currentUser!.displayName.substring(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
           <span className="hidden sm:block max-w-[90px] truncate font-medium text-foreground">
             {currentUser!.displayName.split(" ")[0]}
@@ -110,13 +114,19 @@ export function Navbar() {
             <button className="w-full flex items-center justify-between gap-2.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
               <span className="flex items-center gap-2.5">
                 <Inbox className="h-3.5 w-3.5" />
-                Collab Inbox
+                Inbox
               </span>
               {pendingInbox > 0 && (
                 <span className="text-[9px] bg-primary text-primary-foreground font-mono font-bold px-1.5 py-0.5 min-w-[18px] text-center">
                   {pendingInbox}
                 </span>
               )}
+            </button>
+          </Link>
+          <Link href="/hook-zone" onClick={() => setProfileOpen(false)}>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
+              <Zap className="h-3.5 w-3.5" />
+              Hook Zone
             </button>
           </Link>
           <button
@@ -185,7 +195,7 @@ export function Navbar() {
                 <Link href="/inbox">
                   <button
                     className="relative h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                    title="Collab Inbox"
+                    title="Inbox"
                   >
                     <Inbox className="h-4 w-4" />
                     <AnimatePresence>
@@ -201,6 +211,14 @@ export function Navbar() {
                         </motion.span>
                       )}
                     </AnimatePresence>
+                  </button>
+                </Link>
+                <Link href="/hook-zone">
+                  <button
+                    className="relative h-9 w-9 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    title="Hook Zone"
+                  >
+                    <Zap className="h-4 w-4" />
                   </button>
                 </Link>
                 <NotificationBell />
@@ -264,11 +282,15 @@ export function Navbar() {
                   {/* Mobile auth state */}
                   {currentUser ? (
                     <div className="mt-3 flex items-center gap-3 p-3 bg-muted/20 border border-border/40">
-                      <div className="w-8 h-8 bg-primary/10 border border-primary/30 flex items-center justify-center">
-                        <span className="text-[10px] font-mono font-bold text-primary">
-                          {currentUser.displayName.substring(0, 2).toUpperCase()}
-                        </span>
-                      </div>
+                  <div className="w-8 h-8 bg-primary/10 border border-primary/30 flex items-center justify-center overflow-hidden">
+                    {currentUser.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] font-mono font-bold text-primary">
+                        {currentUser.displayName.substring(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{currentUser.displayName}</p>
                         <p className="text-[10px] font-mono text-muted-foreground">@{currentUser.username}</p>
@@ -333,10 +355,15 @@ export function Navbar() {
                         </Link>
                         <Link href="/inbox" onClick={() => setMobileOpen(false)}>
                           <Button variant="outline" className="w-full rounded-none font-mono text-xs justify-between border-border/60">
-                            <span className="flex items-center"><Inbox className="h-3.5 w-3.5 mr-2" /> Collab Inbox</span>
+                            <span className="flex items-center"><Inbox className="h-3.5 w-3.5 mr-2" /> Inbox</span>
                             {pendingInbox > 0 && (
                               <span className="text-[9px] bg-primary text-primary-foreground font-mono font-bold px-1.5 py-0.5">{pendingInbox}</span>
                             )}
+                          </Button>
+                        </Link>
+                        <Link href="/hook-zone" onClick={() => setMobileOpen(false)}>
+                          <Button variant="outline" className="w-full rounded-none font-mono text-xs justify-start border-border/60">
+                            <Zap className="h-3.5 w-3.5 mr-2" /> Hook Zone
                           </Button>
                         </Link>
                         <Link href="/create-room" onClick={() => setMobileOpen(false)}>

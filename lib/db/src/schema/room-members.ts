@@ -1,0 +1,12 @@
+import { pgTable, serial, integer, timestamp, unique } from "drizzle-orm/pg-core";
+import { roomsTable } from "./rooms";
+import { usersTable } from "./users";
+
+export const roomMembersTable = pgTable("room_members", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueRoomUser: unique().on(table.roomId, table.userId),
+}));

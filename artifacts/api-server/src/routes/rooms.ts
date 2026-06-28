@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { roomsTable, postsTable, usersTable } from "@workspace/db";
+import { roomsTable, postsTable, usersTable, roomMembersTable } from "@workspace/db";
 import { eq, sql, desc, and, ilike } from "drizzle-orm";
+import { z } from "zod";
 import {
   ListRoomsQueryParams,
   CreateRoomBody,
@@ -12,7 +13,15 @@ import {
   GetLiveRoomActivityQueryParams,
   JoinRoomParams,
 } from "@workspace/api-zod";
+import { requireAuth } from "../lib/auth-middleware";
 const router = Router();
+
+const UpdateRoomLinksBody = z.object({
+  links: z.array(z.object({
+    label: z.string().min(1).max(100),
+    url: z.string().url(),
+  })),
+});
 
 router.get("/rooms", async (req, res) => {
    const query = ListRoomsQueryParams.safeParse(req.query);
@@ -47,13 +56,13 @@ router.get("/rooms", async (req, res) => {
    return res.json(rooms);
 });
 
-router.post("/rooms", async (req, res) => {
+router.post("/rooms", requireAuth, async (req, res) => {
    const body = CreateRoomBody.safeParse(req.body);
    if (!body.success) {
      return res.status(400).json({ error: "Invalid request body" });
    }
 
-   const [room] = await db.insert(roomsTable).values(body.data).returning();
+   const [room] = await db.insert(roomsTable).values({ ...body.data, createdByUserId: req.session.userId ?? null }).returning();
    return res.status(201).json(room);
 });
 
@@ -187,16 +196,83 @@ router.delete("/rooms/:id", async (req, res) => {
   return res.status(204).send();
 });
 
-router.post("/rooms/:id/join", async (req, res) => {
+router.get("/rooms/:id/membership", requireAuth, async (req, res) => {
+  const params = GetRoomParams.safeParse(req.params);
+  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+  const userId = req.session.userId!;
+
+  const [existing] = await db
+    .select({ id: roomMembersTable.id })
+    .from(roomMembersTable)
+    .where(and(eq(roomMembersTable.roomId, params.data.id), eq(roomMembersTable.userId, userId)));
+
+  return res.json({ isMember: !!existing });
+});
+
+router.post("/rooms/:id/join", requireAuth, async (req, res) => {
   const params = JoinRoomParams.safeParse(req.params);
   if (!params.success) return res.status(400).json({ error: "Invalid id" });
+  const userId = req.session.userId!;
+
+  const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
+  if (!room) return res.status(404).json({ error: "Room not found" });
+
+  const [existing] = await db
+    .select({ id: roomMembersTable.id })
+    .from(roomMembersTable)
+    .where(and(eq(roomMembersTable.roomId, params.data.id), eq(roomMembersTable.userId, userId)));
+
+  if (existing) return res.json(room);
+
+  const result = await db.insert(roomMembersTable)
+    .values({ roomId: params.data.id, userId })
+    .onConflictDoNothing()
+    .returning()
+    .execute();
+
+  if (result.length === 0) {
+    const [updated] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
+    return res.json(updated);
+  }
+
+  await db
+    .update(roomsTable)
+    .set({ memberCount: sql`${roomsTable.memberCount} + 1` })
+    .where(eq(roomsTable.id, params.data.id));
+
+  await db
+    .update(usersTable)
+    .set({ roomsJoined: sql`${usersTable.roomsJoined} + 1` })
+    .where(eq(usersTable.id, userId));
+
+  const [updated] = await db.select().from(roomsTable).where(eq(roomsTable.id, params.data.id));
+  return res.json(updated);
+});
+
+router.patch("/rooms/:id/links", requireAuth, async (req, res) => {
+  const params = GetRoomParams.safeParse(req.params);
+  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+  const userId = req.session.userId!;
+
+  const [existing] = await db
+    .select({ id: roomsTable.id, createdByUserId: roomsTable.createdByUserId })
+    .from(roomsTable)
+    .where(eq(roomsTable.id, params.data.id));
+  if (!existing) return res.status(404).json({ error: "Room not found" });
+
+  if (existing.createdByUserId && existing.createdByUserId !== userId) {
+    return res.status(403).json({ error: "Only the room owner can manage links" });
+  }
+
+  const body = UpdateRoomLinksBody.safeParse(req.body);
+  if (!body.success) return res.status(400).json({ error: "Invalid links", details: body.error.flatten() });
 
   const [room] = await db
     .update(roomsTable)
-    .set({ memberCount: sql`${roomsTable.memberCount} + 1` })
+    .set({ links: body.data.links })
     .where(eq(roomsTable.id, params.data.id))
     .returning();
-  if (!room) return res.status(404).json({ error: "Room not found" });
+
   return res.json(room);
 });
 

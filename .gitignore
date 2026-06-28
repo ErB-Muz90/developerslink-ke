@@ -48,3 +48,10 @@ Thumbs.db
 .cache/
 .local/
 .vercel
+
+# Environment files
+.env
+.env.*
+
+# Local Netlify folder (cleanup)
+.netlify

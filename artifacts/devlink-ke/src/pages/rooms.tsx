@@ -1,17 +1,45 @@
 import { useState } from "react";
 import { useListRooms } from "@workspace/api-client-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { MessageSquare, Code, Lightbulb, Users, Activity } from "lucide-react";
+import { MessageSquare, Code, Lightbulb, Users, Activity, Trash2 } from "lucide-react";
+import { useCurrentUser } from "@/contexts/user-context";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Rooms() {
   const [filterType, setFilterType] = useState<string>("");
+  const { currentUser } = useCurrentUser();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   
   const { data: rooms, isLoading } = useListRooms({
     type: filterType as any || undefined
   });
+
+  const handleDeleteRoom = async (roomId: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("Delete this room? This cannot be undone.")) return;
+    setDeletingId(roomId);
+    try {
+      const res = await fetch(`/api/rooms/${roomId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        const body = await res.json();
+        toast({ title: "Error", description: body.error ?? "Failed to delete", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Room deleted", description: "The room has been removed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/rooms/live-activity"] });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const getRoomIcon = (type: string) => {
     switch(type) {
@@ -148,11 +176,24 @@ export default function Rooms() {
                   <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {room.memberCount}</span>
                   <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {room.postCount}</span>
                 </div>
-                <Link href={`/rooms/${room.id}`}>
-                  <Button variant="ghost" size="sm" className="h-8 rounded-none font-mono text-xs group-hover:bg-primary group-hover:text-primary-foreground hover:bg-primary/90">
-                    ENTER &rarr;
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-1">
+                  {currentUser && room.createdByUserId === currentUser.id && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-none font-mono text-xs text-destructive hover:bg-destructive/10 hover:text-destructive px-2"
+                      onClick={(e) => handleDeleteRoom(room.id, e)}
+                      disabled={deletingId === room.id}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                  <Link href={`/rooms/${room.id}`}>
+                    <Button variant="ghost" size="sm" className="h-8 rounded-none font-mono text-xs group-hover:bg-primary group-hover:text-primary-foreground hover:bg-primary/90">
+                      ENTER &rarr;
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </motion.div>
           ))}

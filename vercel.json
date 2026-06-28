@@ -2,6 +2,11 @@
   "env": {
     "ENABLE_EXPERIMENTAL_COREPACK": "1"
   },
+  "functions": {
+    "api/[[...route]].ts": {
+      "maxDuration": 10
+    }
+  },
   "buildCommand": "pnpm --filter @workspace/devlink-ke run build",
   "outputDirectory": "artifacts/devlink-ke/dist/public",
   "installCommand": "pnpm install",

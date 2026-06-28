@@ -14,8 +14,9 @@ import NewProfile from "@/pages/new-profile";
 import CreateRoom from "@/pages/create-room";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
-import VerifyEmail from "@/pages/verify-email";
+
 import InboxPage from "@/pages/inbox";
+import HookZonePage from "@/pages/hook-zone";
 import NotificationsPage from "@/pages/notifications";
 import EditProfile from "@/pages/edit-profile";
 import { UserProvider } from "@/contexts/user-context";
@@ -43,8 +44,8 @@ function Router() {
       <Route path="/create-room" component={CreateRoom} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
-      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/inbox" component={InboxPage} />
+      <Route path="/hook-zone" component={HookZonePage} />
       <Route path="/notifications" component={NotificationsPage} />
       <Route path="/edit-profile" component={EditProfile} />
       <Route component={NotFound} />

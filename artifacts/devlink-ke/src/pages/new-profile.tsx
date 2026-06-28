@@ -146,7 +146,7 @@ export default function NewProfile() {
 
       const user = await res.json();
       await refetchMe();
-      toast({ title: "Welcome to DevLink KE!", description: "Your profile is live. Check your email to verify your address." });
+      toast({ title: "Welcome to DevLink KE!", description: "Your profile is live. Start exploring and connecting." });
       setLocation(`/profile/${user.id}`);
     } catch {
       toast({ title: "Error", description: "Something went wrong. Try again.", variant: "destructive" });

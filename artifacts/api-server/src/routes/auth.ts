@@ -4,7 +4,6 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { createAndSendVerification } from "./email-verification";
 import { isDisposableEmail } from "../lib/email-validator";
 import { loginLimiter, registerLimiter } from "../lib/rate-limit";
 import { requireAuth } from "../lib/auth-middleware";
@@ -73,14 +72,10 @@ router.post("/auth/register", registerLimiter, async (req, res) => {
 
   const [user] = await db
     .insert(usersTable)
-    .values({ username, email, passwordHash, ...rest })
+    .values({ username, email, passwordHash, emailVerified: true, ...rest })
     .returning();
 
   req.session.userId = user.id;
-
-  if (user.email) {
-    createAndSendVerification(user.id, user.email).catch(() => {});
-  }
 
   return res.status(201).json(safeUser(user));
 });

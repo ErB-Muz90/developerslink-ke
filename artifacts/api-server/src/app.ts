@@ -11,6 +11,18 @@ import { pool } from "@workspace/db";
 
 const app: Express = express();
 
+// Ultra-lightweight health/liveness endpoints – mounted BEFORE any middleware
+// so they always respond quickly, even if session/DB setup is slow or broken.
+app.get("/api/livez", (_req, res) => {
+  return res.json({ status: "ok" });
+});
+
+// Trust the first proxy (Cloudflare Tunnel, Replit proxy, etc.) so that
+// req.protocol / req.secure reflect the original scheme (HTTPS) rather than
+// the local HTTP connection. This is required for secure session cookies to
+// work behind a TLS-terminating proxy.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -48,6 +60,22 @@ if (isProduction && !process.env["SESSION_SECRET"]) {
   );
 }
 
+// Ensure the session table exists in PostgreSQL before setting up the session middleware.
+// This is needed because connect-pg-single's createTableIfMissing reads a table.sql
+// file at runtime, which isn't available after esbuild bundles the code.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS "session" (
+    "sid" varchar NOT NULL COLLATE "default",
+    "sess" json NOT NULL,
+    "expire" timestamp(6) NOT NULL
+  ) WITH (OIDS=FALSE);
+  CREATE UNIQUE INDEX IF NOT EXISTS "IDX_session_sid" ON "session" ("sid");
+  CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+`).catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error({ err: message }, "Failed to create session table");
+});
+
 app.use(
   session({
     name: "devlink.sid",
@@ -56,7 +84,7 @@ app.use(
     saveUninitialized: false,
     store: new (pgSession(session))({
       pool,
-      createTableIfMissing: true,
+      createTableIfMissing: false,
     }),
     cookie: {
       httpOnly: true,
