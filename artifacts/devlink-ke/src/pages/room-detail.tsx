@@ -11,7 +11,7 @@ import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users,
@@ -56,6 +56,21 @@ export default function RoomDetail() {
   const { data: room, isLoading: roomLoading } = useGetRoom(roomId, {
     query: { enabled: !!roomId, queryKey: ["/api/rooms", roomId] },
   });
+
+  // Check if current user is a member of this room
+  const { data: membership, refetch: refetchMembership } = useQuery({
+    queryKey: ["/api/rooms", roomId, "membership"],
+    queryFn: async () => {
+      const res = await fetch(`/api/rooms/${roomId}/membership`, {
+        credentials: "include",
+        headers: { "x-requested-with": "devlink-ke" },
+      });
+      if (!res.ok) return { isMember: false };
+      return res.json();
+    },
+    enabled: !!roomId,
+    staleTime: 30_000,
+  });
   const { data: posts, isLoading: postsLoading } = useGetRoomPosts(
     { roomId },
     { query: { enabled: !!roomId, queryKey: getGetRoomPostsQueryKey({ roomId }) } }
@@ -79,7 +94,18 @@ export default function RoomDetail() {
     mutation: {
       onSuccess: () => {
         toast({ title: "Joined Room", description: "You are now a member of this room." });
+        // Instantly reflect membership in the UI — no need to wait for refetch
+        queryClient.setQueryData(["/api/rooms", roomId, "membership"], { isMember: true });
         queryClient.invalidateQueries({ queryKey: ["/api/rooms", roomId] });
+        refetchMembership();
+      },
+      onError: (err: any) => {
+        // If the server says we're already a member (409), update UI silently
+        if (err?.status === 409) {
+          queryClient.setQueryData(["/api/rooms", roomId, "membership"], { isMember: true });
+          return;
+        }
+        toast({ title: "Error", description: "Failed to join room", variant: "destructive" });
       },
     },
   });
@@ -394,13 +420,19 @@ export default function RoomDetail() {
         <div className="lg:col-span-1 space-y-4">
           <div className="p-4 border border-border bg-card/50 space-y-2">
             <Button
-              className="w-full rounded-none font-mono bg-foreground text-background hover:bg-foreground/90 text-xs"
-              onClick={() => joinRoom.mutate({ id: roomId })}
-              disabled={joinRoom.isPending}
+              className={`w-full rounded-none font-mono text-xs ${
+                membership?.isMember
+                  ? "bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 cursor-default"
+                  : "bg-foreground text-background hover:bg-foreground/90"
+              }`}
+              onClick={() => {
+                if (!membership?.isMember) joinRoom.mutate({ id: roomId });
+              }}
+              disabled={joinRoom.isPending || membership?.isMember}
               data-testid="button-join-room"
             >
               <Users className="w-3.5 h-3.5 mr-2" />
-              {joinRoom.isPending ? "JOINING..." : "JOIN_ROOM"}
+              {joinRoom.isPending ? "JOINING..." : membership?.isMember ? "MEMBER" : "JOIN_ROOM"}
             </Button>
             <Button
               variant="outline"

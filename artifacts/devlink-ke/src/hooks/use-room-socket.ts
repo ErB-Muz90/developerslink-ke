@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetRoomPostsQueryKey } from "@workspace/api-client-react";
 
@@ -19,10 +19,19 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted = useRef(true);
+  const [isConnected, setIsConnected] = useState(false);
   const postsKey = getGetRoomPostsQueryKey({ roomId });
 
   const connect = useCallback(() => {
     if (!isMounted.current || !roomId) return;
+
+    // Close existing connection before opening a new one
+    if (wsRef.current) {
+      wsRef.current.onclose = null; // prevent reconnect when we close intentionally
+      wsRef.current.onerror = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const params = new URLSearchParams({ roomId: String(roomId) });
@@ -31,6 +40,10 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      if (isMounted.current) setIsConnected(true);
+    };
 
     ws.onmessage = (event) => {
       try {
@@ -57,7 +70,6 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
         }
 
         if (msg.type === "new_notification") {
-          // Broadcast globally so any mounted NotificationBell can pick it up
           window.dispatchEvent(
             new CustomEvent("devlink:notification", { detail: msg.notification })
           );
@@ -68,10 +80,13 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
     };
 
     ws.onclose = () => {
+      setIsConnected(false);
       if (!isMounted.current) return;
       reconnectTimer.current = setTimeout(() => connect(), 3000);
     };
-    ws.onerror = () => ws.close();
+    ws.onerror = () => {
+      ws.close();
+    };
   }, [roomId, userId, queryClient, postsKey]);
 
   useEffect(() => {
@@ -79,10 +94,16 @@ export function useRoomSocket(roomId: number, options: UseRoomSocketOptions = {}
     connect();
     return () => {
       isMounted.current = false;
+      setIsConnected(false);
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.onerror = null;
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
   }, [connect]);
 
-  return { isConnected: wsRef.current?.readyState === WebSocket.OPEN };
+  return { isConnected };
 }

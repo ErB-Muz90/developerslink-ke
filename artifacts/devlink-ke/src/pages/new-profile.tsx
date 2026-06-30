@@ -314,13 +314,14 @@ export default function NewProfile() {
               <FormField control={form.control} name="location" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="font-mono text-xs uppercase text-muted-foreground">County / Hub</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <Select onValueChange={(v) => field.onChange(v === "__clear__" ? "" : v)} value={field.value || "__clear__"}>
                     <FormControl>
                       <SelectTrigger className="rounded-none font-mono focus-visible:ring-primary">
                         <SelectValue placeholder="Select county…" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="max-h-72">
+                      <SelectItem value="__clear__">Select county…</SelectItem>
                       {Object.entries(KENYA_COUNTIES).map(([region, counties]) => (
                         <SelectGroup key={region}>
                           <SelectLabel className="font-mono text-[10px] uppercase text-muted-foreground px-2 py-1.5 tracking-widest">

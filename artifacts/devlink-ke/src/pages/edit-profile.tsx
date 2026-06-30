@@ -103,20 +103,21 @@ export default function EditProfile() {
     if (!currentUser) return;
     setIsSaving(true);
     try {
-      const payload = {
-        displayName: data.displayName,
-        bio: data.bio || null,
-        location: data.location || null,
-        level: data.level,
-        lookingFor: data.lookingFor || null,
-        githubUrl: data.githubUrl || null,
-        twitterUrl: data.twitterUrl || null,
-        skills,
-      };
+const payload = {
+          displayName: data.displayName,
+          bio: data.bio ?? undefined,
+          location: data.location ?? undefined,
+          level: data.level,
+          lookingFor: data.lookingFor ?? undefined,
+          githubUrl: data.githubUrl ?? undefined,
+          twitterUrl: data.twitterUrl ?? undefined,
+          skills,
+        };
+
       const res = await fetch(`/api/users/${currentUser.id}`, {
         method: "PATCH",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-requested-with": "devlink-ke" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -150,6 +151,7 @@ export default function EditProfile() {
       const res = await fetch(`/api/users/${currentUser.id}/avatar`, {
         method: "POST",
         credentials: "include",
+        headers: { "x-requested-with": "devlink-ke" },
         body: formData,
       });
       if (!res.ok) {
@@ -173,7 +175,7 @@ export default function EditProfile() {
       const res = await fetch(`/api/users/${currentUser.id}/avatar/generate`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-requested-with": "devlink-ke" },
         body: JSON.stringify({ style: "avataaars" }),
       });
       if (!res.ok) {
@@ -305,14 +307,14 @@ export default function EditProfile() {
                 <FormField control={form.control} name="location" render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-[10px] font-mono tracking-wider text-muted-foreground">COUNTY</FormLabel>
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
+                    <Select value={field.value || "__clear__"} onValueChange={(v) => field.onChange(v === "__clear__" ? "" : v)}>
                       <FormControl>
                         <SelectTrigger className="rounded-none border-border bg-background font-mono focus:ring-primary">
                           <SelectValue placeholder="Select county…" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-[260px]">
-                        <SelectItem value="">No county set</SelectItem>
+                        <SelectItem value="__clear__">No county set</SelectItem>
                         {Object.entries(KENYA_COUNTIES).map(([region, counties]) => (
                           <SelectGroup key={region}>
                             <SelectLabel className="text-[10px] font-mono text-primary tracking-wider">{region.toUpperCase()}</SelectLabel>

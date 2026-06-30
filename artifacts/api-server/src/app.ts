@@ -12,6 +12,9 @@ import { pool } from "@workspace/db";
 
 const app: Express = express();
 
+// Trust the first proxy (Cloudflare) — needed for correct req.ip, req.protocol, and secure cookies
+app.set("trust proxy", 1);
+
 // Persistent uploads directory — configurable via env var, defaults to ./uploads in the project root
 const UPLOADS_DIR = process.env["UPLOADS_DIR"] ?? path.join(process.cwd(), "uploads");
 fs.mkdirSync(path.join(UPLOADS_DIR, "avatars"), { recursive: true });
@@ -75,5 +78,18 @@ app.use(
 // CSRF protection via custom header — must come after session middleware
 app.use("/api", csrfProtection);
 app.use("/api", router);
+
+// Serve the frontend static build — API routes take priority
+const frontendDist = path.resolve(process.cwd(), "artifacts", "devlink-ke", "dist", "public");
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.use((req, res, next) => {
+    if (req.method === "GET" && !req.path.startsWith("/api/") && !req.path.startsWith("/uploads/")) {
+      res.sendFile(path.join(frontendDist, "index.html"));
+    } else {
+      next();
+    }
+  });
+}
 
 export default app;

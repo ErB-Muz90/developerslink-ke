@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { roomsTable, postsTable, usersTable } from "@workspace/db";
+import { roomsTable, postsTable, usersTable, roomMembersTable } from "@workspace/db";
 import { eq, sql, desc, and, ilike } from "drizzle-orm";
 import {
   ListRoomsQueryParams,
@@ -191,13 +191,49 @@ router.post("/rooms/:id/join", async (req, res) => {
   const params = JoinRoomParams.safeParse(req.params);
   if (!params.success) return res.status(400).json({ error: "Invalid id" });
 
+  if (!req.session.userId) {
+    return res.status(401).json({ error: "You must be logged in to join a room" });
+  }
+
+  // Check if already a member
+  const [existing] = await db
+    .select()
+    .from(roomMembersTable)
+    .where(and(eq(roomMembersTable.roomId, params.data.id), eq(roomMembersTable.userId, req.session.userId)));
+  if (existing) {
+    return res.status(409).json({ error: "Already a member of this room" });
+  }
+
   const [room] = await db
     .update(roomsTable)
     .set({ memberCount: sql`${roomsTable.memberCount} + 1` })
     .where(eq(roomsTable.id, params.data.id))
     .returning();
   if (!room) return res.status(404).json({ error: "Room not found" });
+
+  // Track membership
+  await db.insert(roomMembersTable).values({
+    roomId: params.data.id,
+    userId: req.session.userId,
+  });
+
   return res.json(room);
+});
+
+router.get("/rooms/:id/membership", async (req, res) => {
+  const params = GetRoomParams.safeParse(req.params);
+  if (!params.success) return res.status(400).json({ error: "Invalid id" });
+
+  if (!req.session.userId) {
+    return res.json({ isMember: false });
+  }
+
+  const [membership] = await db
+    .select()
+    .from(roomMembersTable)
+    .where(and(eq(roomMembersTable.roomId, params.data.id), eq(roomMembersTable.userId, req.session.userId)));
+
+  return res.json({ isMember: !!membership });
 });
 
 export default router;
