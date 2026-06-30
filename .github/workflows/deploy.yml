@@ -1,0 +1,47 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Vultr VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 149.248.38.252 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull latest code on VPS
+        run: |
+          ssh root@149.248.38.252 "cd ~/DevLink-Kenyazip && git pull origin main"
+
+      - name: Install dependencies
+        run: |
+          ssh root@149.248.38.252 "cd ~/DevLink-Kenyazip && pnpm install"
+
+      - name: Build API server
+        run: |
+          ssh root@149.248.38.252 "cd ~/DevLink-Kenyazip/artifacts/api-server && node build.mjs"
+
+      - name: Build frontend
+        run: |
+          ssh root@149.248.38.252 "cd ~/DevLink-Kenyazip && pnpm --filter @workspace/devlink-ke run build"
+
+      - name: Restart API server
+        run: |
+          ssh root@149.248.38.252 "systemctl restart devlink-api.service"
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -sSf -o /dev/null -w "HTTP %{http_code}\n" https://devlink.erunstech.top/
+          curl -sSf -o /dev/null -w "HTTP %{http_code}\n" https://devlink.erunstech.top/api/auth/google/url
+          echo "✅ Deployment successful!"
